@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrasaTek Advanced Inventory</title>
+<link rel="icon" type="image/png" href="favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <style>
+        /* Custom Scrollbar for a premium feel */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Print Optimization */
+        @media print {
+            body { background: white; }
+            #sidebar, header, .no-print, #analytics-cards { display: none !important; }
+            main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .badge { border: 1px solid #000; color: #000 !important; background: transparent !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
+
+    <div class="md:hidden fixed top-0 w-full bg-slate-900 text-white p-4 flex justify-between items-center z-50 shadow-md no-print">
+        <h1 class="text-xl font-bold tracking-wider">PrasaTek POS</h1>
+        <button id="mobile-menu-btn" class="text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
+    </div>
+
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 w-72 bg-white border-r border-slate-200 flex flex-col h-full z-40 transition-transform duration-300 ease-in-out mt-16 md:mt-0 shadow-sm">
+        <div class="hidden md:block p-6 bg-slate-900 text-white">
+            <h1 class="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">PrasaTek</h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Inventory Engine v2.0</p>
+        </div>
+        
+        <div class="p-4 border-b border-slate-100 bg-slate-50">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Manage Categories</h2>
+            <form id="add-category-form" class="flex gap-2">
+                <input type="text" id="new-category-name" placeholder="New category..." required
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"><i class="fas fa-plus"></i></button>
+            </form>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 pb-20 md:pb-4">
+            <ul id="category-list" class="space-y-1 text-sm font-medium text-slate-600">
+                </ul>
+        </div>
+    </aside>
+
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-30 hidden md:hidden backdrop-blur-sm"></div>
+
+    <main class="flex-1 flex flex-col h-full bg-slate-50/50 mt-16 md:mt-0 w-full overflow-hidden">
+        
+        <header class="bg-white border-b border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-0 no-print">
+            <div class="flex items-center gap-4 w-full sm:w-auto">
+                <div class="relative w-full sm:w-80">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                    <input type="text" id="search-bar" placeholder="Scan barcode or search name..." 
+                        class="pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg w-full focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+                <button onclick="window.print()" class="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition text-sm flex items-center gap-2 font-medium border border-slate-200">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button id="export-btn" class="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition text-sm flex items-center gap-2 font-medium border border-emerald-200">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <label class="bg-amber-50 text-amber-700 px-3 py-2 rounded-lg hover:bg-amber-100 transition cursor-pointer text-sm flex items-center gap-2 font-medium border border-amber-200">
+                    <i class="fas fa-upload"></i> Import
+                    <input type="file" id="import-file" accept=".xlsx, .xls, .csv" class="hidden">
+                </label>
+                <button id="open-add-modal-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 transition text-sm flex items-center gap-2 font-medium">
+                    <i class="fas fa-plus"></i> New Item
+                </button>
+            </div>
+        </header>
+
+        <div id="analytics-cards" class="grid grid-cols-3 gap-4 p-6 pb-0 no-print">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><i class="fas fa-cubes text-xl"></i></div>
+                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Items</p><h3 id="stat-total" class="text-2xl font-black text-slate-800">0</h3></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><i class="fas fa-exclamation-triangle text-xl"></i></div>
+                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Low Stock</p><h3 id="stat-low" class="text-2xl font-black text-slate-800">0</h3></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600"><i class="fas fa-times-circle text-xl"></i></div>
+                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Out of Stock</p><h3 id="stat-out" class="text-2xl font-black text-slate-800">0</h3></div>
+            </div>
+        </div>
+
+        <div class="flex-1 p-6 overflow-hidden flex flex-col">
+            <h2 id="current-category-title" class="text-lg font-bold text-slate-800 mb-4 print:block">All Inventory</h2>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-50 sticky top-0 z-10">
+                        <tr>
+                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Code</th>
+                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Details</th>
+                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs hidden sm:table-cell">Status</th>
+                            <th class="px-6 py-4 text-center font-semibold text-slate-600 uppercase tracking-wider text-xs">Stock Qty</th>
+                            <th class="px-6 py-4 text-right font-semibold text-slate-600 uppercase tracking-wider text-xs no-print">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="item-table-body" class="bg-white divide-y divide-slate-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="add-item-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 m-4 transform transition-all border border-slate-100">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h3 class="text-xl font-bold text-slate-800">Register New Rack Item</h3>
+                <button id="close-modal-btn" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 hover:bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="add-item-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Code (SKU)</label>
+                        <input type="text" id="item-code" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                        <select id="item-category" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Name / Description</label>
+                    <input type="text" id="item-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pack Size</label>
+                        <input type="text" id="item-pack-size" placeholder="e.g. 500ml" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Qty</label>
+                        <input type="number" id="item-quantity" value="0" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Low Alert At</label>
+                        <input type="number" id="item-threshold" value="5" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-slate-100 mt-6">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-bold shadow-md shadow-blue-200">Save to Database</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="barcode-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-8 m-4 text-center max-w-sm w-full">
+            <h3 id="barcode-title" class="text-lg font-bold text-slate-800 mb-4 truncate"></h3>
+            <div class="bg-white p-4 rounded-lg border-2 border-dashed border-slate-200 inline-block mb-6">
+                <svg id="barcode-svg"></svg>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="window.printBarcode()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-700 font-medium"><i class="fas fa-print mr-2"></i> Print Label</button>
+                <button onclick="document.getElementById('barcode-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg hover:bg-slate-200 font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, push, set, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdm-R6d3nntIpXp3SnPs940WUkGC4vMAk",
+            authDomain: "inventory-20678.firebaseapp.com",
+            databaseURL: "https://inventory-20678-default-rtdb.firebaseio.com",
+            projectId: "inventory-20678",
+            storageBucket: "inventory-20678.firebasestorage.app",
+            messagingSenderId: "350200719311",
+            appId: "1:350200719311:web:d4838e9c44f65219a9d4ba"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Core State
+        let currentFilter = 'All';
+        let allItems = [];
+
+        // --- UI Utilities ---
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            const icon = type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info';
+            toast.className = `${bg} text-white px-5 py-3 rounded-lg shadow-xl font-medium text-sm flex items-center gap-3 transform translate-y-10 opacity-0 transition-all duration-300`;
+            toast.innerHTML = `<div class="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center"><i class="fas fa-${icon} text-xs"></i></div> ${message}`;
+            document.getElementById('toast-container').appendChild(toast);
+            
+            requestAnimationFrame(() => { toast.classList.remove('translate-y-10', 'opacity-0'); });
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Mobile Menu
+        const toggleSidebar = () => {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.toggle('hidden');
+        };
+        document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
+        document.getElementById('sidebar-overlay').addEventListener('click', toggleSidebar);
+
+        // Add Modal
+        const modal = document.getElementById('add-item-modal');
+        document.getElementById('open-add-modal-btn').addEventListener('click', () => {
+            document.getElementById('add-item-form').reset();
+            modal.classList.remove('hidden');
+        });
+        document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+
+        // --- Firebase: Categories ---
+        document.getElementById('add-category-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('new-category-name');
+            if (input.value.trim()) {
+                push(ref(db, 'categories'), { name: input.value.trim() }).then(() => {
+                    input.value = ''; showToast('Category created');
+                }).catch(e => showToast(e.message, 'error'));
+            }
+        });
+
+        onValue(ref(db, 'categories'), (snapshot) => {
+            const list = document.getElementById('category-list');
+            const select = document.getElementById('item-category');
+            list.innerHTML = `<li class="cursor-pointer px-3 py-2 rounded-lg transition-colors flex items-center gap-3 ${currentFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'}" onclick="window.setFilter('All')"><div class="w-6 h-6 rounded bg-blue-100 flex items-center justify-center text-blue-500"><i class="fas fa-layer-group text-xs"></i></div> All Inventory</li>`;
+            select.innerHTML = '<option value="" disabled selected>Select category...</option>';
+            
+            const data = snapshot.val();
+            if (data) {
+                Object.entries(data).forEach(([id, cat]) => {
+                    const isActive = currentFilter === cat.name;
+                    list.innerHTML += `
+                        <li class="group cursor-pointer px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'}">
+                            <div class="flex items-center gap-3 flex-1 overflow-hidden" onclick="window.setFilter('${cat.name}')">
+                                <div class="w-6 h-6 rounded ${isActive ? 'bg-blue-200 text-blue-600' : 'bg-slate-200 text-slate-500'} flex items-center justify-center shrink-0"><i class="fas fa-tag text-xs"></i></div>
+                                <span class="truncate">${cat.name}</span>
+                            </div>
+                            <button onclick="window.deleteCategory('${id}')" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><i class="fas fa-trash-alt text-xs"></i></button>
+                        </li>`;
+                    select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+                });
+            }
+        });
+
+        window.setFilter = (catName) => {
+            currentFilter = catName;
+            document.getElementById('current-category-title').innerText = catName === 'All' ? 'All Inventory' : `${catName} Items`;
+            renderItems();
+            onValue(ref(db, 'categories'), () => {}, { onlyOnce: true }); // Refresh sidebar active state
+            if(window.innerWidth < 768) toggleSidebar();
+        };
+
+        window.deleteCategory = (id) => confirm('Delete category?') && remove(ref(db, `categories/${id}`));
+
+        // --- Firebase: Items & Advanced Logic ---
+        document.getElementById('add-item-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('item-code').value.trim();
+            if (allItems.some(item => item.itemCode.toLowerCase() === code.toLowerCase())) {
+                return showToast(`Code ${code} already in use!`, 'error');
+            }
+
+            const newItem = {
+                itemCode: code,
+                itemName: document.getElementById('item-name').value.trim(),
+                category: document.getElementById('item-category').value,
+                packSize: document.getElementById('item-pack-size').value.trim(),
+                quantity: parseInt(document.getElementById('item-quantity').value) || 0,
+                threshold: parseInt(document.getElementById('item-threshold').value) || 5
+            };
+
+            push(ref(db, 'items'), newItem).then(() => {
+                modal.classList.add('hidden');
+                showToast('Item saved to database');
+            }).catch(e => showToast(e.message, 'error'));
+        });
+
+        onValue(ref(db, 'items'), (snapshot) => {
+            allItems = [];
+            const data = snapshot.val();
+            if (data) {
+                allItems = Object.entries(data).map(([id, item]) => ({ id, ...item }));
+                allItems.sort((a, b) => a.itemName.localeCompare(b.itemName));
+            }
+            updateAnalytics();
+            renderItems();
+        });
+
+        function updateAnalytics() {
+            document.getElementById('stat-total').innerText = allItems.length;
+            const low = allItems.filter(i => i.quantity > 0 && i.quantity <= (i.threshold || 5)).length;
+            const out = allItems.filter(i => i.quantity <= 0).length;
+            document.getElementById('stat-low').innerText = low;
+            document.getElementById('stat-out').innerText = out;
+        }
+
+        // Inline Quantity Update Engine
+        window.updateStock = (id, currentQty, change) => {
+            const newQty = Math.max(0, currentQty + change); // Prevent negative stock
+            update(ref(db, `items/${id}`), { quantity: newQty });
+        };
+
+        // Barcode Generation Engine
+        window.showBarcode = (code, name) => {
+            document.getElementById('barcode-title').innerText = name;
+            JsBarcode("#barcode-svg", code, { format: "CODE128", lineColor: "#1e293b", width: 2, height: 80, displayValue: true });
+            document.getElementById('barcode-modal').classList.remove('hidden');
+        };
+
+        window.printBarcode = () => {
+            const svgContent = document.getElementById('barcode-svg').outerHTML;
+            const printWin = window.open('', '', 'width=400,height=300');
+            printWin.document.write(`<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">${svgContent}</body></html>`);
+            printWin.document.close();
+            printWin.focus();
+            setTimeout(() => { printWin.print(); printWin.close(); }, 250);
+        };
+
+        window.deleteItem = (id) => confirm('Delete this item permanently?') && remove(ref(db, `items/${id}`));
+
+        function renderItems() {
+            const tbody = document.getElementById('item-table-body');
+            tbody.innerHTML = '';
+            const search = document.getElementById('search-bar').value.toLowerCase();
+            
+            const filtered = allItems.filter(i => 
+                (currentFilter === 'All' || i.category === currentFilter) &&
+                (i.itemName.toLowerCase().includes(search) || i.itemCode.toLowerCase().includes(search))
+            );
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-50"></i>No items match your criteria.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                // Status Logic
+                const qty = item.quantity || 0;
+                const limit = item.threshold || 5;
+                let statusBadge = '';
+                
+                if (qty <= 0) {
+                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-red-100 text-red-700 border border-red-200"><i class="fas fa-times-circle mr-1 mt-0.5"></i> Out of Stock</span>`;
+                } else if (qty <= limit) {
+                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-amber-100 text-amber-700 border border-amber-200"><i class="fas fa-exclamation-triangle mr-1 mt-0.5"></i> Low Stock</span>`;
+                } else {
+                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200"><i class="fas fa-check-circle mr-1 mt-0.5"></i> In Stock</span>`;
+                }
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">${item.itemCode}</span>
+                                <button onclick="window.showBarcode('${item.itemCode}', '${item.itemName.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-blue-600 no-print" title="Generate Barcode"><i class="fas fa-barcode"></i></button>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold text-slate-900">${item.itemName}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">${item.category} • Size: ${item.packSize}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap hidden sm:table-cell">${statusBadge}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-3 bg-slate-100 rounded-lg p-1 w-max mx-auto no-print border border-slate-200">
+                                <button onclick="window.updateStock('${item.id}', ${qty}, -1)" class="w-7 h-7 flex items-center justify-center rounded bg-white text-slate-600 hover:text-red-600 shadow-sm border border-slate-200 transition"><i class="fas fa-minus text-xs"></i></button>
+                                <span class="font-bold text-slate-800 w-8 text-center">${qty}</span>
+                                <button onclick="window.updateStock('${item.id}', ${qty}, 1)" class="w-7 h-7 flex items-center justify-center rounded bg-white text-slate-600 hover:text-emerald-600 shadow-sm border border-slate-200 transition"><i class="fas fa-plus text-xs"></i></button>
+                            </div>
+                            <span class="hidden print:block text-center font-bold">${qty}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right no-print">
+                            <button onclick="window.deleteItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition p-2 rounded hover:bg-red-50"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('search-bar').addEventListener('input', renderItems);
+
+        // --- Advanced Excel IO ---
+        document.getElementById('export-btn').addEventListener('click', () => {
+            if(allItems.length === 0) return showToast('Database is empty', 'error');
+            const data = allItems.map(i => ({
+                Code: i.itemCode, Name: i.itemName, Category: i.category, 
+                Size: i.packSize, Quantity: i.quantity, LowStockAlert: i.threshold
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+            XLSX.writeFile(wb, `PrasaTek_Inventory_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showToast('Excel report downloaded');
+        });
+
+        document.getElementById('import-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                let added = 0, skipped = 0;
+
+                jsonData.forEach(row => {
+                    const code = String(row.Code || row.itemCode || '').trim();
+                    if (!code) return;
+                    if (allItems.some(i => i.itemCode.toLowerCase() === code.toLowerCase())) { skipped++; return; }
+                    
+                    push(ref(db, 'items'), {
+                        itemCode: code,
+                        itemName: String(row.Name || row.itemName || 'Unnamed Item'),
+                        category: String(row.Category || row.category || 'Uncategorized'),
+                        packSize: String(row.Size || row.packSize || '-'),
+                        quantity: parseInt(row.Quantity || row.quantity) || 0,
+                        threshold: parseInt(row.LowStockAlert || row.threshold) || 5
+                    });
+                    added++;
+                });
+                showToast(`Import Success: ${added} added, ${skipped} skipped.`);
+                e.target.value = ''; 
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>
