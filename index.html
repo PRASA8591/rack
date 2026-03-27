@@ -9,7 +9,6 @@
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    
     <style>
         /* Custom Scrollbar for a premium feel */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -19,13 +18,26 @@
 
         /* Print Optimization */
         @media print {
-            body { background: white; }
-            #sidebar, header, .no-print, #analytics-cards { display: none !important; }
-            main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .badge { border: 1px solid #000; color: #000 !important; background: transparent !important; }
+            body { background: white !important; font-size: 10pt; }
+            #sidebar, header, .no-print, #analytics-cards, #sidebar-toggle-btn, .actions-column { display: none !important; }
+            main { margin: 0 !important; padding: 0 !important; width: 100% !important; display: block !important; overflow: visible !important; }
+            .print-header { display: flex !important; flex-direction: column; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 10px; }
+            table { width: 100% !important; border-collapse: collapse !important; margin-top: 10px; }
+            th { background-color: #f8fafc !important; color: #1e293b !important; border: 1px solid #cbd5e1 !important; padding: 10px 8px !important; text-transform: uppercase; font-size: 8pt; }
+            td { border: 1px solid #e2e8f0 !important; padding: 8px !important; vertical-align: middle; }
+            .badge { border: 1px solid #000; color: #000 !important; background: transparent !important; box-shadow: none !important; }
+            .font-mono { font-family: Courier, monospace !important; }
         }
+        
+        .print-header { display: none; }
+        
+        /* Sidebar Transitions */
+        #sidebar { width: 18rem; transition: all 0.3s ease; }
+        #sidebar.collapsed { width: 4.5rem; }
+        #sidebar.collapsed .sidebar-text, #sidebar.collapsed #add-category-form, #sidebar.collapsed h2 { display: none; }
+        #sidebar.collapsed .sidebar-logo { display: none; }
+        #sidebar.collapsed .sidebar-mini-logo { display: block; }
+        #sidebar:not(.collapsed) .sidebar-mini-logo { display: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
@@ -35,13 +47,17 @@
         <button id="mobile-menu-btn" class="text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
     </div>
 
-    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 w-72 bg-white border-r border-slate-200 flex flex-col h-full z-40 transition-transform duration-300 ease-in-out mt-16 md:mt-0 shadow-sm">
-        <div class="hidden md:block p-6 bg-slate-900 text-white">
-            <h1 class="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">ıllıllı PRASA ıllıllı</h1>
-            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Inventory Engine v2.0</p>
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 bg-white border-r border-slate-200 flex flex-col h-full z-40 mt-16 md:mt-0 shadow-sm overflow-hidden">
+        <div class="hidden md:block p-6 bg-slate-900 text-white relative">
+            <h1 class="sidebar-logo text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">PrasaTek</h1>
+            <h1 class="sidebar-mini-logo text-2xl font-black text-blue-400 text-center">P</h1>
+            <p class="sidebar-text text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Inventory Engine v2.0</p>
+            <button id="sidebar-toggle-btn" class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 shadow-sm z-50 no-print">
+                <i class="fas fa-chevron-left text-[10px]" id="toggle-icon"></i>
+            </button>
         </div>
         
-        <div class="p-4 border-b border-slate-100 bg-slate-50">
+        <div class="sidebar-text p-4 border-b border-slate-100 bg-slate-50">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Manage Categories</h2>
             <form id="add-category-form" class="flex gap-2">
                 <input type="text" id="new-category-name" placeholder="New category..." required
@@ -57,8 +73,17 @@
     </aside>
 
     <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-30 hidden md:hidden backdrop-blur-sm"></div>
-
+    
     <main class="flex-1 flex flex-col h-full bg-slate-50/50 mt-16 md:mt-0 w-full overflow-hidden">
+        <!-- Print Only Header -->
+        <div class="print-header">
+            <h1 class="text-2xl font-bold text-slate-900">PRASATEK INVENTORY REPORT</h1>
+            <p class="text-sm text-slate-500 mt-1">Generated on: <span id="print-date"></span></p>
+            <div class="flex gap-10 mt-4 text-xs font-bold uppercase tracking-widest text-slate-600">
+                <span>Branch: Main HQ</span>
+                <span>Type: Full Inventory Snapshot</span>
+            </div>
+        </div>
         
         <header class="bg-white border-b border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-0 no-print">
             <div class="flex items-center gap-4 w-full sm:w-auto">
@@ -69,6 +94,9 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+                <button onclick="window.printLowStock()" class="bg-amber-100 text-amber-800 px-3 py-2 rounded-lg hover:bg-amber-200 transition text-sm flex items-center gap-2 font-medium border border-amber-300">
+                    <i class="fas fa-exclamation-circle"></i> Restock List
+                </button>
                 <button onclick="window.print()" class="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition text-sm flex items-center gap-2 font-medium border border-slate-200">
                     <i class="fas fa-print"></i> Print
                 </button>
@@ -85,7 +113,7 @@
             </div>
         </header>
 
-        <div id="analytics-cards" class="grid grid-cols-3 gap-4 p-6 pb-0 no-print">
+        <div id="analytics-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 pb-0 no-print">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><i class="fas fa-cubes text-xl"></i></div>
                 <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Items</p><h3 id="stat-total" class="text-2xl font-black text-slate-800">0</h3></div>
@@ -100,17 +128,33 @@
             </div>
         </div>
 
+        <!-- Bulk Actions Toolbar -->
+        <div id="bulk-toolbar" class="hidden mx-6 mt-4 p-3 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-between animate-bounce-in no-print">
+            <div class="flex items-center gap-4 ml-2">
+                <span class="text-sm font-bold"><span id="selected-count">0</span> Items Selected</span>
+                <div class="h-6 w-[1px] bg-blue-400"></div>
+                <button onclick="window.bulkUpdateStock(1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-plus-circle mr-1"></i> Add Stock</button>
+                <button onclick="window.bulkUpdateStock(-1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-minus-circle mr-1"></i> Deduct</button>
+                <button onclick="window.openBulkMoveModal()" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-folder-open mr-1"></i> Bulk Move</button>
+                <button onclick="window.bulkDelete()" class="text-xs font-bold uppercase hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors bg-white/20"><i class="fas fa-trash-alt mr-1"></i> Bulk Delete</button>
+            </div>
+            <button onclick="window.deselectAll()" class="text-white hover:text-blue-100 p-2"><i class="fas fa-times"></i></button>
+        </div>
+
         <div class="flex-1 p-6 overflow-hidden flex flex-col">
             <h2 id="current-category-title" class="text-lg font-bold text-slate-800 mb-4 print:block">All Inventory</h2>
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 sticky top-0 z-10">
                         <tr>
+                            <th class="px-4 py-4 text-center no-print">
+                                <input type="checkbox" id="master-checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer">
+                            </th>
                             <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Code</th>
                             <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Details</th>
                             <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs hidden sm:table-cell">Status</th>
                             <th class="px-6 py-4 text-center font-semibold text-slate-600 uppercase tracking-wider text-xs">Stock Qty</th>
-                            <th class="px-6 py-4 text-right font-semibold text-slate-600 uppercase tracking-wider text-xs no-print">Actions</th>
+                            <th class="px-6 py-4 text-right font-semibold text-slate-600 uppercase tracking-wider text-xs no-print actions-column">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="item-table-body" class="bg-white divide-y divide-slate-100">
@@ -123,10 +167,11 @@
     <div id="add-item-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 m-4 transform transition-all border border-slate-100">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                <h3 class="text-xl font-bold text-slate-800">Register New Rack Item</h3>
+                <h3 id="modal-title" class="text-xl font-bold text-slate-800">Register New Rack Item</h3>
                 <button id="close-modal-btn" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 hover:bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
             </div>
             <form id="add-item-form" class="space-y-4">
+                <input type="hidden" id="edit-item-id">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 sm:col-span-1">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Code (SKU)</label>
@@ -142,7 +187,7 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Name / Description</label>
                     <input type="text" id="item-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pack Size</label>
                         <input type="text" id="item-pack-size" placeholder="e.g. 500ml" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
@@ -151,13 +196,13 @@
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Qty</label>
                         <input type="number" id="item-quantity" value="0" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Low Alert At</label>
-                        <input type="number" id="item-threshold" value="5" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
-                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Low Alert At</label>
+                    <input type="number" id="item-threshold" value="5" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
                 </div>
                 <div class="pt-4 border-t border-slate-100 mt-6">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-bold shadow-md shadow-blue-200">Save to Database</button>
+                    <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-bold shadow-md shadow-blue-200">Save to Database</button>
                 </div>
             </form>
         </div>
@@ -172,6 +217,36 @@
             <div class="flex gap-3">
                 <button onclick="window.printBarcode()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-700 font-medium"><i class="fas fa-print mr-2"></i> Print Label</button>
                 <button onclick="document.getElementById('barcode-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg hover:bg-slate-200 font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Move Modal -->
+    <div id="bulk-move-modal" class="fixed inset-0 bg-slate-900 bg-opacity-60 z-[110] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Move Selected to Category</h3>
+            <div id="bulk-category-container" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <!-- Categories injected here -->
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="document.getElementById('bulk-move-modal').classList.add('hidden')" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 border border-slate-100">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <h3 id="confirm-title" class="text-xl font-bold text-slate-800 mb-2">Are you sure?</h3>
+                <p id="confirm-message" class="text-slate-500 text-sm mb-6">This action cannot be undone.</p>
+                <div class="flex gap-3">
+                    <button id="confirm-cancel-btn" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition font-bold text-sm">Cancel</button>
+                    <button id="confirm-ok-btn" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200">Confirm</button>
+                </div>
             </div>
         </div>
     </div>
@@ -198,38 +273,174 @@
         // Core State
         let currentFilter = 'All';
         let allItems = [];
+        let allCategories = [];
+        let isEditing = false;
 
         // --- UI Utilities ---
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
-            const bg = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            toast.className = `min-w-[280px] bg-white border-l-4 ${type === 'success' ? 'border-emerald-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'} text-slate-800 px-5 py-4 rounded-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] font-semibold text-sm flex items-center gap-4 transform translate-y-10 opacity-0 transition-all duration-500`;
             const icon = type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info';
-            toast.className = `${bg} text-white px-5 py-3 rounded-lg shadow-xl font-medium text-sm flex items-center gap-3 transform translate-y-10 opacity-0 transition-all duration-300`;
-            toast.innerHTML = `<div class="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center"><i class="fas fa-${icon} text-xs"></i></div> ${message}`;
+            toast.innerHTML = `
+                <div class="${type === 'success' ? 'bg-emerald-50 text-emerald-500' : type === 'error' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'} rounded-full w-9 h-9 flex items-center justify-center shrink-0">
+                    <i class="fas fa-${icon} text-sm"></i>
+                </div> 
+                <div class="flex-1">${message}</div>
+            `;
             document.getElementById('toast-container').appendChild(toast);
             
-            requestAnimationFrame(() => { toast.classList.remove('translate-y-10', 'opacity-0'); });
+            requestAnimationFrame(() => { 
+                toast.classList.remove('translate-y-10', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+            });
             setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => toast.remove(), 300);
+                toast.classList.add('opacity-0', 'translate-y-2', 'scale-95');
+                setTimeout(() => toast.remove(), 500);
             }, 4000);
         }
 
+        const showAlert = (title, message, type = 'info') => {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const titleEl = document.getElementById('confirm-title');
+                const messageEl = document.getElementById('confirm-message');
+                const okBtn = document.getElementById('confirm-ok-btn');
+                const cancelBtn = document.getElementById('confirm-cancel-btn');
+                const iconDiv = modal.querySelector('.text-2xl').parentElement;
+
+                titleEl.innerText = title;
+                messageEl.innerText = message;
+                cancelBtn.classList.add('hidden'); // Only one button for alert
+                
+                if (type === 'error') {
+                    okBtn.className = "flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200";
+                    iconDiv.className = "w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100";
+                    iconDiv.innerHTML = '<i class="fas fa-times-circle text-2xl"></i>';
+                } else {
+                    okBtn.className = "flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold text-sm shadow-lg shadow-blue-200";
+                    iconDiv.className = "w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100";
+                    iconDiv.innerHTML = '<i class="fas fa-info-circle text-2xl"></i>';
+                }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.firstElementChild.classList.remove('scale-95'), 10);
+
+                const close = () => {
+                    modal.firstElementChild.classList.add('scale-95');
+                    setTimeout(() => {
+                        modal.classList.add('hidden');
+                        cancelBtn.classList.remove('hidden'); // Reset for confirm
+                        resolve();
+                    }, 200);
+                };
+
+                okBtn.onclick = close;
+                modal.onclick = (e) => e.target === modal && close();
+            });
+        };
+
+        const showConfirm = (title, message, isDanger = true) => {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const titleEl = document.getElementById('confirm-title');
+                const messageEl = document.getElementById('confirm-message');
+                const okBtn = document.getElementById('confirm-ok-btn');
+                const cancelBtn = document.getElementById('confirm-cancel-btn');
+                const iconDiv = modal.querySelector('.text-2xl').parentElement;
+
+                titleEl.innerText = title;
+                messageEl.innerText = message;
+                cancelBtn.classList.remove('hidden');
+                
+                if (isDanger) {
+                    okBtn.innerText = 'Confirm';
+                    okBtn.className = "flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200";
+                    iconDiv.className = "w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100";
+                    iconDiv.innerHTML = '<i class="fas fa-exclamation-triangle text-2xl"></i>';
+                } else {
+                    okBtn.innerText = 'OK';
+                    okBtn.className = "flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold text-sm shadow-lg shadow-blue-200";
+                    iconDiv.className = "w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100";
+                    iconDiv.innerHTML = '<i class="fas fa-question-circle text-2xl"></i>';
+                }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.firstElementChild.classList.remove('scale-95'), 10);
+
+                const close = (result) => {
+                    modal.firstElementChild.classList.add('scale-95');
+                    setTimeout(() => {
+                        modal.classList.add('hidden');
+                        resolve(result);
+                    }, 200);
+                };
+
+                okBtn.onclick = () => close(true);
+                cancelBtn.onclick = () => close(false);
+                modal.onclick = (e) => e.target === modal && close(false);
+            });
+        };
+
+        // Sidebar Toggle Engine
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle-btn');
+        const toggleIcon = document.getElementById('toggle-icon');
+        
+        const updateSidebarState = (isCollapsed) => {
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                toggleIcon.classList.add('rotate-180');
+            } else {
+                sidebar.classList.remove('collapsed');
+                toggleIcon.classList.remove('rotate-180');
+            }
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        };
+
+        const initialCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        updateSidebarState(initialCollapsed);
+
+        toggleBtn.addEventListener('click', () => {
+            updateSidebarState(!sidebar.classList.contains('collapsed'));
+        });
+
         // Mobile Menu
-        const toggleSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        const toggleSidebarMobile = () => {
+            sidebar.classList.toggle('-translate-x-full');
             document.getElementById('sidebar-overlay').classList.toggle('hidden');
         };
-        document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
-        document.getElementById('sidebar-overlay').addEventListener('click', toggleSidebar);
+        document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebarMobile);
+        document.getElementById('sidebar-overlay').addEventListener('click', toggleSidebarMobile);
 
         // Add Modal
         const modal = document.getElementById('add-item-modal');
         document.getElementById('open-add-modal-btn').addEventListener('click', () => {
+            isEditing = false;
+            document.getElementById('modal-title').innerText = 'Register New Rack Item';
+            document.getElementById('submit-btn').innerText = 'Save to Database';
+            document.getElementById('edit-item-id').value = '';
             document.getElementById('add-item-form').reset();
             modal.classList.remove('hidden');
         });
         document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+
+        window.openEditModal = (id) => {
+            isEditing = true;
+            const item = allItems.find(i => i.id === id);
+            if (!item) return;
+            
+            document.getElementById('modal-title').innerText = 'Edit Rack Item';
+            document.getElementById('submit-btn').innerText = 'Update Item';
+            document.getElementById('edit-item-id').value = id;
+            document.getElementById('item-code').value = item.itemCode;
+            document.getElementById('item-category').value = item.category || '';
+            document.getElementById('item-name').value = item.itemName;
+            document.getElementById('item-pack-size').value = item.packSize;
+            document.getElementById('item-quantity').value = item.quantity;
+            document.getElementById('item-threshold').value = item.threshold;
+            
+            modal.classList.remove('hidden');
+        };
 
         // --- Firebase: Categories ---
         document.getElementById('add-category-form').addEventListener('submit', (e) => {
@@ -249,6 +460,8 @@
             select.innerHTML = '<option value="" disabled selected>Select category...</option>';
             
             const data = snapshot.val();
+            allCategories = data ? Object.values(data).map(c => c.name) : [];
+            
             if (data) {
                 Object.entries(data).forEach(([id, cat]) => {
                     const isActive = currentFilter === cat.name;
@@ -273,29 +486,43 @@
             if(window.innerWidth < 768) toggleSidebar();
         };
 
-        window.deleteCategory = (id) => confirm('Delete category?') && remove(ref(db, `categories/${id}`));
+        window.deleteCategory = async (id) => {
+            if (await showConfirm('Delete Category?', 'Are you sure you want to remove this category? All items in this category will remain but will be uncategorized.')) {
+                remove(ref(db, `categories/${id}`)).then(() => showToast('Category deleted'));
+            }
+        };
 
         // --- Firebase: Items & Advanced Logic ---
         document.getElementById('add-item-form').addEventListener('submit', (e) => {
             e.preventDefault();
+            const editId = document.getElementById('edit-item-id').value;
             const code = document.getElementById('item-code').value.trim();
-            if (allItems.some(item => item.itemCode.toLowerCase() === code.toLowerCase())) {
+            
+            if (!isEditing && allItems.some(item => item.itemCode.toLowerCase() === code.toLowerCase())) {
                 return showToast(`Code ${code} already in use!`, 'error');
             }
 
-            const newItem = {
+            const itemData = {
                 itemCode: code,
                 itemName: document.getElementById('item-name').value.trim(),
                 category: document.getElementById('item-category').value,
                 packSize: document.getElementById('item-pack-size').value.trim(),
                 quantity: parseInt(document.getElementById('item-quantity').value) || 0,
-                threshold: parseInt(document.getElementById('item-threshold').value) || 5
+                threshold: parseInt(document.getElementById('item-threshold').value) || 5,
+                updatedAt: new Date().toISOString()
             };
 
-            push(ref(db, 'items'), newItem).then(() => {
-                modal.classList.add('hidden');
-                showToast('Item saved to database');
-            }).catch(e => showToast(e.message, 'error'));
+            if (isEditing && editId) {
+                update(ref(db, `items/${editId}`), itemData).then(() => {
+                    modal.classList.add('hidden');
+                    showToast('Item updated successfully');
+                });
+            } else {
+                push(ref(db, 'items'), itemData).then(() => {
+                    modal.classList.add('hidden');
+                    showToast('Item saved to database');
+                }).catch(e => showToast(e.message, 'error'));
+            }
         });
 
         onValue(ref(db, 'items'), (snapshot) => {
@@ -313,14 +540,108 @@
             document.getElementById('stat-total').innerText = allItems.length;
             const low = allItems.filter(i => i.quantity > 0 && i.quantity <= (i.threshold || 5)).length;
             const out = allItems.filter(i => i.quantity <= 0).length;
+            
             document.getElementById('stat-low').innerText = low;
             document.getElementById('stat-out').innerText = out;
         }
 
-        // Inline Quantity Update Engine
+        // Selection Engine
+        let selectedIds = new Set();
+        const updateBulkToolbar = () => {
+            const toolbar = document.getElementById('bulk-toolbar');
+            const countEl = document.getElementById('selected-count');
+            if (selectedIds.size > 0) {
+                toolbar.classList.remove('hidden');
+                countEl.innerText = selectedIds.size;
+            } else {
+                toolbar.classList.add('hidden');
+            }
+        };
+
+        window.toggleSelect = (id) => {
+            if (selectedIds.has(id)) selectedIds.delete(id);
+            else selectedIds.add(id);
+            updateBulkToolbar();
+            renderItems(); // Refresh to show checked state
+        };
+
+        window.deselectAll = () => {
+            selectedIds.clear();
+            document.getElementById('master-checkbox').checked = false;
+            updateBulkToolbar();
+            renderItems();
+        };
+
+        document.getElementById('master-checkbox').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const search = document.getElementById('search-bar').value.toLowerCase();
+                allItems.filter(i => 
+                    (currentFilter === 'All' || i.category === currentFilter) &&
+                    (i.itemName.toLowerCase().includes(search) || i.itemCode.toLowerCase().includes(search))
+                ).forEach(i => selectedIds.add(i.id));
+            } else {
+                selectedIds.clear();
+            }
+            updateBulkToolbar();
+            renderItems();
+        });
+
+        window.bulkUpdateStock = async (change) => {
+            const verb = change > 0 ? 'increase' : 'decrease';
+            if (await showConfirm(`Bulk ${verb}`, `Apply ${change > 0 ? '+' : ''}${change} stock to ${selectedIds.size} selected items?`, false)) {
+                const promises = Array.from(selectedIds).map(id => {
+                    const item = allItems.find(i => i.id === id);
+                    const newQty = Math.max(0, (item.quantity || 0) + change);
+                    return update(ref(db, `items/${id}`), { quantity: newQty, updatedAt: new Date().toISOString() });
+                });
+                await Promise.all(promises);
+                showToast(`Updated ${selectedIds.size} items`);
+                window.deselectAll();
+            }
+        };
+
+        window.bulkDelete = async () => {
+            if (await showConfirm('Bulk Delete', `Are you sure you want to permanently delete ${selectedIds.size} selected items?`, true)) {
+                const promises = Array.from(selectedIds).map(id => remove(ref(db, `items/${id}`)));
+                await Promise.all(promises);
+                showToast(`Deleted ${selectedIds.size} items`);
+                window.deselectAll();
+            }
+        };
+
+        window.openBulkMoveModal = () => {
+            const container = document.getElementById('bulk-category-container');
+            container.innerHTML = allCategories.map(cat => `
+                <button onclick="window.bulkMoveItems('${cat}')" class="w-full text-left px-4 py-3 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition font-medium text-slate-700 flex items-center justify-between group">
+                    ${cat}
+                    <i class="fas fa-arrow-right text-slate-300 group-hover:text-blue-500"></i>
+                </button>
+            `).join('');
+            document.getElementById('bulk-move-modal').classList.remove('hidden');
+        };
+
+        window.bulkMoveItems = async (newCat) => {
+            const promises = Array.from(selectedIds).map(id => update(ref(db, `items/${id}`), { category: newCat, updatedAt: new Date().toISOString() }));
+            await Promise.all(promises);
+            document.getElementById('bulk-move-modal').classList.add('hidden');
+            showToast(`Moved ${selectedIds.size} items to ${newCat}`);
+            window.deselectAll();
+            window.setFilter(newCat);
+        };
+
+        // Inline Updates
         window.updateStock = (id, currentQty, change) => {
-            const newQty = Math.max(0, currentQty + change); // Prevent negative stock
-            update(ref(db, `items/${id}`), { quantity: newQty });
+            const newQty = Math.max(0, currentQty + change);
+            update(ref(db, `items/${id}`), { quantity: newQty, updatedAt: new Date().toISOString() });
+        };
+
+        window.updateItemCategory = (id, newCat) => {
+            update(ref(db, `items/${id}`), { category: newCat, updatedAt: new Date().toISOString() });
+            showToast(`Moved to ${newCat}`);
+            if (currentFilter !== 'All' && currentFilter !== newCat) {
+                // Auto-jump to new category view
+                window.setFilter(newCat);
+            }
         };
 
         // Barcode Generation Engine
@@ -333,13 +654,63 @@
         window.printBarcode = () => {
             const svgContent = document.getElementById('barcode-svg').outerHTML;
             const printWin = window.open('', '', 'width=400,height=300');
-            printWin.document.write(`<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">${svgContent}</body></html>`);
+            printWin.document.write(`<html><head><title>Print Label</title><style>body{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;} svg{width:80%;max-height:60%;}</style></head><body>${svgContent}<div style="margin-top:10px;font-weight:bold;">${document.getElementById('barcode-title').innerText}</div></body></html>`);
             printWin.document.close();
             printWin.focus();
             setTimeout(() => { printWin.print(); printWin.close(); }, 250);
         };
+        
+        window.oldPrint = window.print;
+        window.print = () => {
+            document.getElementById('print-date').innerText = new Date().toLocaleString();
+            window.oldPrint();
+        };
 
-        window.deleteItem = (id) => confirm('Delete this item permanently?') && remove(ref(db, `items/${id}`));
+        window.printLowStock = () => {
+            const lowItems = allItems.filter(i => i.quantity <= (i.threshold || 5));
+            if (lowItems.length === 0) return showToast('No items currently low on stock', 'info');
+            
+            // Create a temp element for printing
+            const originalBody = document.body.innerHTML;
+            const printContent = `
+                <div style="padding: 40px; font-family: sans-serif;">
+                    <h1 style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px;">RESTOCK LIST (Low Stock Summary)</h1>
+                    <p style="text-align: center;">Generated on: ${new Date().toLocaleString()}</p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+                        <thead>
+                            <tr style="background: #f1f1f1;">
+                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Code</th>
+                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Item Name</th>
+                                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">On Hand</th>
+                                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Threshold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${lowItems.map(i => `
+                                <tr>
+                                    <td style="border: 1px solid #ddd; padding: 12px;">${i.itemCode}</td>
+                                    <td style="border: 1px solid #ddd; padding: 12px;">${i.itemName}</td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${i.quantity}</td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${i.threshold}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            const printWin = window.open('', '', 'width=800,height=600');
+            printWin.document.write(printContent);
+            printWin.document.close();
+            printWin.focus();
+            setTimeout(() => { printWin.print(); printWin.close(); }, 500);
+        };
+
+        window.deleteItem = async (id) => {
+            if (await showConfirm('Delete Item?', 'Are you sure you want to permanently delete this item from the inventory? This cannot be undone.')) {
+                remove(ref(db, `items/${id}`)).then(() => showToast('Item deleted successfully'));
+            }
+        };
 
         function renderItems() {
             const tbody = document.getElementById('item-table-body');
@@ -348,18 +719,20 @@
             
             const filtered = allItems.filter(i => 
                 (currentFilter === 'All' || i.category === currentFilter) &&
-                (i.itemName.toLowerCase().includes(search) || i.itemCode.toLowerCase().includes(search))
+                (i.itemName.toLowerCase().includes(search) || 
+                 i.itemCode.toLowerCase().includes(search) || 
+                 (i.category && i.category.toLowerCase().includes(search)))
             );
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-50"></i>No items match your criteria.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-50"></i>No items match your criteria.</td></tr>`;
                 return;
             }
 
             filtered.forEach(item => {
-                // Status Logic
                 const qty = item.quantity || 0;
                 const limit = item.threshold || 5;
+                const isSelected = selectedIds.has(item.id);
                 let statusBadge = '';
                 
                 if (qty <= 0) {
@@ -370,8 +743,15 @@
                     statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200"><i class="fas fa-check-circle mr-1 mt-0.5"></i> In Stock</span>`;
                 }
 
+                const catSelect = `<select onchange="window.updateItemCategory('${item.id}', this.value)" class="text-xs font-bold text-slate-500 bg-slate-100 border-none rounded px-2 py-1 cursor-pointer hover:bg-slate-200 transition-colors focus:ring-0">
+                    ${allCategories.map(c => `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>`;
+
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition-colors group">
+                    <tr class="${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'} transition-colors group">
+                        <td class="px-4 py-4 text-center no-print">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="window.toggleSelect('${item.id}')" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer">
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">${item.itemCode}</span>
@@ -379,11 +759,12 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-slate-900">${item.itemName}</div>
-                            <div class="text-xs text-slate-500 mt-0.5">${item.category} • Size: ${item.packSize}</div>
+                            <div class="text-sm font-bold text-slate-900 cursor-pointer hover:text-blue-600" onclick="window.openEditModal('${item.id}')">${item.itemName}</div>
+                            <div class="text-xs mt-1 no-print">${catSelect} <span class="text-slate-400 ml-1">• Size: ${item.packSize}</span></div>
+                            <div class="hidden print:block text-xs text-slate-500">${item.category} • Size: ${item.packSize}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap hidden sm:table-cell">${statusBadge}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
                             <div class="flex items-center justify-center gap-3 bg-slate-100 rounded-lg p-1 w-max mx-auto no-print border border-slate-200">
                                 <button onclick="window.updateStock('${item.id}', ${qty}, -1)" class="w-7 h-7 flex items-center justify-center rounded bg-white text-slate-600 hover:text-red-600 shadow-sm border border-slate-200 transition"><i class="fas fa-minus text-xs"></i></button>
                                 <span class="font-bold text-slate-800 w-8 text-center">${qty}</span>
@@ -391,8 +772,11 @@
                             </div>
                             <span class="hidden print:block text-center font-bold">${qty}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right no-print">
-                            <button onclick="window.deleteItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition p-2 rounded hover:bg-red-50"><i class="fas fa-trash-alt"></i></button>
+                        <td class="px-6 py-4 whitespace-nowrap text-right no-print actions-column">
+                            <div class="flex items-center justify-end gap-1">
+                                <button onclick="window.openEditModal('${item.id}')" class="text-slate-400 hover:text-blue-600 transition p-2 rounded hover:bg-blue-50" title="Edit Item"><i class="fas fa-edit text-xs"></i></button>
+                                <button onclick="window.deleteItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition p-2 rounded hover:bg-red-50" title="Delete Item"><i class="fas fa-trash-alt text-xs"></i></button>
+                            </div>
                         </td>
                     </tr>
                 `;
