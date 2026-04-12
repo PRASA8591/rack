@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PrasaTek POS - Mobile Billing</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        /* Mobile App Feel */
+        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
+        
+        /* Custom Scrollbar for Cart */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Scanner Tweaks */
+        #reader { width: 100%; border-radius: 0.75rem; overflow: hidden; border: none !important; }
+        #reader video { object-fit: cover; border-radius: 0.75rem; }
+        
+        /* Print Receipt Styling (Thermal Printer Format) */
+        @media print {
+            body { background: white !important; font-size: 12px; color: black !important; padding: 0 !important; margin: 0 !important; }
+            #app-layout, #toast-container { display: none !important; }
+            #print-receipt { display: block !important; width: 100%; max-width: 80mm; margin: 0 auto; font-family: 'Courier New', Courier, monospace; }
+            
+            .receipt-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .receipt-title { font-size: 18px; font-weight: bold; margin: 0; }
+            .receipt-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            .receipt-table th, .receipt-table td { padding: 4px 0; border-bottom: 1px dotted #ccc; text-align: left; }
+            .receipt-table .right { text-align: right; }
+            .receipt-total { border-top: 1px dashed #000; padding-top: 5px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; margin-bottom: 15px; }
+            .receipt-footer { text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+            @page { margin: 0; }
+        }
+        #print-receipt { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <audio id="beep-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <div id="app-layout" class="flex flex-col h-full w-full max-w-2xl mx-auto bg-white shadow-xl relative">
+        
+        <header class="bg-slate-900 text-white p-4 flex justify-between items-center z-10 shadow-md shrink-0">
+            <div>
+                <h1 class="text-lg font-black tracking-wider text-blue-400">PrasaTek POS</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Mobile Billing</p>
+            </div>
+            <a href="index.html" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg transition-colors flex items-center justify-center w-10 h-10">
+                <i class="fas fa-home text-slate-300"></i>
+            </a>
+        </header>
+
+        <div class="p-4 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div id="scanner-container" class="mb-3 hidden bg-black rounded-xl shadow-inner relative">
+                <div id="reader"></div>
+                <button onclick="toggleScanner()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="toggleScanner()" id="start-scan-btn" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-blue-200 flex items-center justify-center w-14 shrink-0 transition-transform active:scale-95">
+                    <i class="fas fa-camera text-lg"></i>
+                </button>
+                <div class="relative flex-1">
+                    <i class="fas fa-barcode absolute left-3 top-3.5 text-slate-400"></i>
+                    <input type="text" id="manual-code" placeholder="Scan or enter code..." class="w-full pl-10 pr-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono text-sm outline-none shadow-sm">
+                </div>
+                <button onclick="manualAdd()" class="bg-slate-800 text-white px-4 py-3 rounded-xl font-bold shadow-md flex items-center justify-center w-14 shrink-0 transition-transform active:scale-95">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-50 pb-32" id="cart-container">
+            <div id="empty-cart" class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                <i class="fas fa-shopping-cart text-5xl mb-4"></i>
+                <p class="font-bold">Cart is empty</p>
+                <p class="text-xs">Scan items to begin billing</p>
+            </div>
+            <div id="cart-items" class="space-y-3 hidden">
+                </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20">
+            <div class="flex justify-between items-end mb-3">
+                <span class="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Amount</span>
+                <span id="cart-total" class="text-3xl font-black text-emerald-600">රු 0.00</span>
+            </div>
+            <button onclick="completeBill()" id="checkout-btn" disabled class="w-full bg-emerald-500 disabled:bg-slate-300 text-white py-4 rounded-xl font-black text-lg shadow-lg disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2">
+                <i class="fas fa-receipt"></i> Complete & Print Bill
+            </button>
+        </div>
+    </div>
+
+    <div id="print-receipt">
+        <div class="receipt-header">
+            <h2 class="receipt-title">PRASATEK MEDICAL</h2>
+            <p style="margin: 3px 0 0 0;">Pharmacy & Care</p>
+            <p id="receipt-date" style="margin: 3px 0 0 0;"></p>
+        </div>
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="right">Qty</th>
+                    <th class="right">Price</th>
+                </tr>
+            </thead>
+            <tbody id="receipt-body"></tbody>
+        </table>
+        <div class="receipt-total">
+            <span>TOTAL:</span>
+            <span id="receipt-grand-total"></span>
+        </div>
+        <div class="receipt-footer">
+            <p>Thank you for your business!</p>
+            <p>Generated by PrasaTek ERP</p>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // FIREBASE SETUP (Matches main system)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdm-R6d3nntIpXp3SnPs940WUkGC4vMAk",
+            authDomain: "inventory-20678.firebaseapp.com",
+            databaseURL: "https://inventory-20678-default-rtdb.firebaseio.com",
+            projectId: "inventory-20678",
+            storageBucket: "inventory-20678.firebasestorage.app"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // STATE
+        let inventory = {}; // Fast lookup map: itemCode -> itemData
+        let cart = {}; // cart items: itemCode -> { ...itemData, cartQty }
+        let html5QrcodeScanner = null;
+        let isScanning = false;
+        let lastScannedCode = '';
+        let scanDebounceTimer = null;
+
+        const beepSound = document.getElementById('beep-sound');
+
+        // LOAD INVENTORY FROM FIREBASE
+        onValue(ref(db, 'items'), (snapshot) => {
+            const data = snapshot.val();
+            inventory = {};
+            if (data) {
+                Object.entries(data).forEach(([id, item]) => {
+                    if (item.itemCode) {
+                        inventory[item.itemCode] = { id, ...item };
+                    }
+                });
+            }
+        });
+
+        // TOAST NOTIFICATIONS
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl font-bold text-sm flex items-center gap-3 animate-bounce-in max-w-xs ml-auto border-l-4 ${type === 'success' ? 'border-emerald-500' : 'border-red-500'}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle text-emerald-400' : 'times-circle text-red-400'}"></i> ${msg}`;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // BARCODE SCANNER ENGINE
+        window.toggleScanner = () => {
+            const container = document.getElementById('scanner-container');
+            const btn = document.getElementById('start-scan-btn');
+            
+            if (isScanning) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScanning = false;
+                    container.classList.add('hidden');
+                    btn.classList.remove('bg-red-500');
+                    btn.classList.add('bg-blue-600');
+                    btn.innerHTML = '<i class="fas fa-camera text-lg"></i>';
+                });
+            } else {
+                container.classList.remove('hidden');
+                btn.classList.remove('bg-blue-600');
+                btn.classList.add('bg-red-500');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>'; // Loading state
+                
+                html5QrcodeScanner = new Html5Qrcode("reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+                
+                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+                .then(() => {
+                    isScanning = true;
+                    btn.innerHTML = '<i class="fas fa-video text-lg"></i>';
+                })
+                .catch(err => {
+                    showToast("Camera access denied or failed.", "error");
+                    container.classList.add('hidden');
+                    btn.innerHTML = '<i class="fas fa-camera text-lg"></i>';
+                    btn.classList.add('bg-blue-600');
+                    btn.classList.remove('bg-red-500');
+                });
+            }
+        };
+
+        function onScanSuccess(decodedText) {
+            // Prevent rapid double scanning of the same barcode
+            if (decodedText === lastScannedCode) return;
+            
+            lastScannedCode = decodedText;
+            clearTimeout(scanDebounceTimer);
+            scanDebounceTimer = setTimeout(() => { lastScannedCode = ''; }, 2000); // Reset after 2 seconds
+
+            beepSound.currentTime = 0;
+            beepSound.play().catch(e => console.log('Audio play prevented by browser'));
+            
+            processItem(decodedText);
+        }
+
+        // MANUAL ADD
+        window.manualAdd = () => {
+            const input = document.getElementById('manual-code');
+            const code = input.value.trim();
+            if (code) {
+                processItem(code);
+                input.value = '';
+                input.focus();
+            }
+        };
+
+        document.getElementById('manual-code').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.manualAdd();
+        });
+
+        // CORE LOGIC: Add to Cart
+        function processItem(code) {
+            const item = inventory[code];
+            
+            if (!item) {
+                showToast(`Code ${code} not found!`, 'error');
+                return;
+            }
+
+            const currentStock = parseInt(item.quantity) || 0;
+            const price = parseFloat(item.sellingPrice) || 0;
+
+            if (currentStock <= 0) {
+                showToast(`${item.itemName} is OUT OF STOCK!`, 'error');
+                return;
+            }
+
+            if (cart[code]) {
+                if (cart[code].cartQty >= currentStock) {
+                    showToast(`Max stock reached for ${item.itemName}`, 'error');
+                    return;
+                }
+                cart[code].cartQty += 1;
+            } else {
+                cart[code] = { ...item, cartQty: 1, price: price };
+            }
+            
+            showToast(`Added ${item.itemName}`);
+            renderCart();
+        }
+
+        // CART UI CONTROLS
+        window.changeQty = (code, delta) => {
+            if (!cart[code]) return;
+            
+            const newQty = cart[code].cartQty + delta;
+            const maxStock = parseInt(cart[code].quantity) || 0;
+
+            if (newQty <= 0) {
+                delete cart[code];
+            } else if (newQty > maxStock) {
+                showToast(`Only ${maxStock} in stock!`, 'error');
+                return;
+            } else {
+                cart[code].cartQty = newQty;
+            }
+            renderCart();
+        };
+
+        window.removeItem = (code) => {
+            delete cart[code];
+            renderCart();
+        };
+
+        function renderCart() {
+            const itemsContainer = document.getElementById('cart-items');
+            const emptyState = document.getElementById('empty-cart');
+            const checkoutBtn = document.getElementById('checkout-btn');
+            
+            const cartKeys = Object.keys(cart);
+            let total = 0;
+
+            if (cartKeys.length === 0) {
+                emptyState.classList.remove('hidden');
+                itemsContainer.classList.add('hidden');
+                checkoutBtn.disabled = true;
+                document.getElementById('cart-total').innerText = "රු 0.00";
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            itemsContainer.classList.remove('hidden');
+            checkoutBtn.disabled = false;
+            itemsContainer.innerHTML = '';
+
+            cartKeys.forEach(code => {
+                const item = cart[code];
+                const itemTotal = item.cartQty * item.price;
+                total += itemTotal;
+
+                itemsContainer.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between gap-3 animate-fade-in">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">${item.itemName}</h4>
+                            <p class="text-xs text-slate-400 font-mono mt-0.5">${item.itemCode} &bull; ${item.packSize || '1'}</p>
+                            <p class="font-bold text-emerald-600 text-sm mt-1">රු ${item.price.toFixed(2)}</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                                <button onclick="changeQty('${code}', -1)" class="w-8 h-8 rounded-md bg-white text-slate-600 hover:text-red-500 shadow-sm flex items-center justify-center"><i class="fas fa-minus text-xs"></i></button>
+                                <span class="font-black text-slate-800 w-8 text-center text-sm">${item.cartQty}</span>
+                                <button onclick="changeQty('${code}', 1)" class="w-8 h-8 rounded-md bg-white text-slate-600 hover:text-emerald-500 shadow-sm flex items-center justify-center"><i class="fas fa-plus text-xs"></i></button>
+                            </div>
+                            <button onclick="removeItem('${code}')" class="text-slate-300 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('cart-total').innerText = `රු ${total.toFixed(2)}`;
+        }
+
+        // CHECKOUT & PRINT LOGIC
+        window.completeBill = async () => {
+            const btn = document.getElementById('checkout-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+
+            try {
+                const updates = {};
+                const cartItems = Object.values(cart);
+                let grandTotal = 0;
+                
+                // 1. Prepare Firebase Updates & Receipt HTML
+                const tbody = document.getElementById('receipt-body');
+                tbody.innerHTML = '';
+
+                cartItems.forEach(item => {
+                    // Calculate new stock
+                    const newStock = Math.max(0, parseInt(item.quantity) - item.cartQty);
+                    updates[`items/${item.id}/quantity`] = newStock;
+                    
+                    // Add to receipt
+                    const lineTotal = item.cartQty * item.price;
+                    grandTotal += lineTotal;
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td colspan="3" style="font-weight:bold; font-size:11px;">${item.itemName}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-size:11px;">${item.itemCode}</td>
+                            <td class="right" style="font-size:11px;">${item.cartQty} x ${item.price.toFixed(2)}</td>
+                            <td class="right" style="font-size:11px; font-weight:bold;">${lineTotal.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                // 2. Commit to Firebase
+                await update(ref(db), updates);
+                
+                // 3. Prepare Print Data
+                document.getElementById('receipt-date').innerText = new Date().toLocaleString();
+                document.getElementById('receipt-grand-total').innerText = `LKR ${grandTotal.toFixed(2)}`;
+
+                // 4. Trigger Print
+                window.print();
+
+                // 5. Reset App
+                cart = {};
+                renderCart();
+                showToast('Transaction Complete!', 'success');
+
+                // If scanner was running, restart it to be ready for next customer
+                if (isScanning && document.visibilityState === 'visible') {
+                    // keep it running
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast('Error saving transaction', 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-receipt"></i> Complete & Print Bill';
+                btn.disabled = false;
+            }
+        };
+
+        // Extra CSS Animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes bounce-in { 0% { transform: scale(0.9); opacity: 0; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+            .animate-bounce-in { animation: bounce-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+            @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+        `;
+        document.head.appendChild(style);
+
+    </script>
+</body>
+</html>
