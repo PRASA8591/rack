@@ -3,36 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrasaTek Advanced Inventory</title>
-<link rel="icon" type="image/png" href="favicon.png">
+    <title>PrasaTek Medical Inventory ERP</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
     <style>
-        /* Custom Scrollbar for a premium feel */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
+        
         /* Print Optimization */
         @media print {
             body { background: white !important; font-size: 10pt; }
-            #sidebar, header, .no-print, #analytics-cards, #sidebar-toggle-btn, .actions-column { display: none !important; }
+            #sidebar, header, .no-print, #analytics-cards, #sidebar-toggle-btn, .actions-column, #pagination-controls { display: none !important; }
             main { margin: 0 !important; padding: 0 !important; width: 100% !important; display: block !important; overflow: visible !important; }
             .print-header { display: flex !important; flex-direction: column; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 10px; }
             table { width: 100% !important; border-collapse: collapse !important; margin-top: 10px; }
             th { background-color: #f8fafc !important; color: #1e293b !important; border: 1px solid #cbd5e1 !important; padding: 10px 8px !important; text-transform: uppercase; font-size: 8pt; }
             td { border: 1px solid #e2e8f0 !important; padding: 8px !important; vertical-align: middle; }
             .badge { border: 1px solid #000; color: #000 !important; background: transparent !important; box-shadow: none !important; }
-            .font-mono { font-family: Courier, monospace !important; }
+            select { appearance: none; border: none; font-weight: bold; }
         }
-        
         .print-header { display: none; }
         
         /* Sidebar Transitions */
-        #sidebar { width: 18rem; transition: all 0.3s ease; }
+        #sidebar { width: 16rem; transition: all 0.3s ease; }
         #sidebar.collapsed { width: 4.5rem; }
         #sidebar.collapsed .sidebar-text, #sidebar.collapsed #add-category-form, #sidebar.collapsed h2 { display: none; }
         #sidebar.collapsed .sidebar-logo { display: none; }
@@ -43,15 +44,15 @@
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
 
     <div class="md:hidden fixed top-0 w-full bg-slate-900 text-white p-4 flex justify-between items-center z-50 shadow-md no-print">
-        <h1 class="text-xl font-bold tracking-wider">PrasaTek POS</h1>
+        <h1 class="text-xl font-bold tracking-wider">PrasaTek V3</h1>
         <button id="mobile-menu-btn" class="text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
     </div>
 
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 bg-white border-r border-slate-200 flex flex-col h-full z-40 mt-16 md:mt-0 shadow-sm overflow-hidden">
         <div class="hidden md:block p-6 bg-slate-900 text-white relative">
-            <h1 class="sidebar-logo text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">PrasaTek</h1>
+            <h1 class="sidebar-logo text-2xl font-black tracking-tight text-blue-400">PrasaTek</h1>
             <h1 class="sidebar-mini-logo text-2xl font-black text-blue-400 text-center">P</h1>
-            <p class="sidebar-text text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Inventory Engine v2.0</p>
+            <p class="sidebar-text text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">INVENTORY ENGINE V3.0</p>
             <button id="sidebar-toggle-btn" class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 shadow-sm z-50 no-print">
                 <i class="fas fa-chevron-left text-[10px]" id="toggle-icon"></i>
             </button>
@@ -60,146 +61,161 @@
         <div class="sidebar-text p-4 border-b border-slate-100 bg-slate-50">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Manage Categories</h2>
             <form id="add-category-form" class="flex gap-2">
-                <input type="text" id="new-category-name" placeholder="New category..." required
-                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <input type="text" id="new-category-name" placeholder="New category..." required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                 <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"><i class="fas fa-plus"></i></button>
             </form>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 pb-20 md:pb-4">
-            <ul id="category-list" class="space-y-1 text-sm font-medium text-slate-600">
-                </ul>
+            <ul id="category-list" class="space-y-1 text-sm font-medium text-slate-600"></ul>
         </div>
     </aside>
 
     <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-30 hidden md:hidden backdrop-blur-sm"></div>
     
     <main class="flex-1 flex flex-col h-full bg-slate-50/50 mt-16 md:mt-0 w-full overflow-hidden">
-        <!-- Print Only Header -->
+        
         <div class="print-header">
             <h1 class="text-2xl font-bold text-slate-900">PRASATEK INVENTORY REPORT</h1>
             <p class="text-sm text-slate-500 mt-1">Generated on: <span id="print-date"></span></p>
-            <div class="flex gap-10 mt-4 text-xs font-bold uppercase tracking-widest text-slate-600">
-                <span>Branch: Main HQ</span>
-                <span>Type: Full Inventory Snapshot</span>
-            </div>
         </div>
         
         <header class="bg-white border-b border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-0 no-print">
             <div class="flex items-center gap-4 w-full sm:w-auto">
                 <div class="relative w-full sm:w-80">
                     <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
-                    <input type="text" id="search-bar" placeholder="Scan barcode or search name..." 
-                        class="pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg w-full focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm">
+                    <input type="text" id="search-bar" placeholder="Scan barcode or search name..." class="pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg w-full focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm">
                 </div>
             </div>
+            
             <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
-                <button onclick="window.printLowStock()" class="bg-amber-100 text-amber-800 px-3 py-2 rounded-lg hover:bg-amber-200 transition text-sm flex items-center gap-2 font-medium border border-amber-300">
-                    <i class="fas fa-exclamation-circle"></i> Restock List
+                <button onclick="window.printLowStock()" class="bg-amber-100/50 text-amber-700 px-3 py-2 rounded-lg hover:bg-amber-100 transition text-sm flex items-center gap-2 font-bold border border-amber-200">
+                    <i class="fas fa-exclamation-circle text-amber-500"></i> Restock List
                 </button>
-                <button onclick="window.print()" class="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition text-sm flex items-center gap-2 font-medium border border-slate-200">
-                    <i class="fas fa-print"></i> Print
+                <button onclick="window.print()" class="bg-slate-50 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-100 transition text-sm flex items-center gap-2 font-bold border border-slate-200">
+                    <i class="fas fa-print text-slate-500"></i> Print
                 </button>
-                <button id="export-btn" class="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition text-sm flex items-center gap-2 font-medium border border-emerald-200">
-                    <i class="fas fa-download"></i> Export
+                <button id="export-btn" class="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition text-sm flex items-center gap-2 font-bold border border-emerald-200">
+                    <i class="fas fa-download text-emerald-500"></i> Export
                 </button>
-                <label class="bg-amber-50 text-amber-700 px-3 py-2 rounded-lg hover:bg-amber-100 transition cursor-pointer text-sm flex items-center gap-2 font-medium border border-amber-200">
-                    <i class="fas fa-upload"></i> Import
+                <label class="bg-orange-50 text-orange-700 px-3 py-2 rounded-lg hover:bg-orange-100 transition cursor-pointer text-sm flex items-center gap-2 font-bold border border-orange-200">
+                    <i class="fas fa-upload text-orange-500"></i> Import
                     <input type="file" id="import-file" accept=".xlsx, .xls, .csv" class="hidden">
                 </label>
-                <button id="open-add-modal-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 transition text-sm flex items-center gap-2 font-medium">
+                <button id="open-add-modal-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 transition text-sm flex items-center gap-2 font-bold">
                     <i class="fas fa-plus"></i> New Item
                 </button>
             </div>
         </header>
 
-        <div id="analytics-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 pb-0 no-print">
+        <div id="analytics-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 pb-0 no-print">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><i class="fas fa-cubes text-xl"></i></div>
-                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Items</p><h3 id="stat-total" class="text-2xl font-black text-slate-800">0</h3></div>
+                <div><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Items</p><h3 id="stat-total" class="text-xl font-black text-slate-800">0</h3></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600"><i class="fas fa-money-bill-wave text-xl"></i></div>
+                <div><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Asset Value</p><h3 id="stat-value" class="text-xl font-black text-slate-800">රු 0</h3></div>
             </div>
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><i class="fas fa-exclamation-triangle text-xl"></i></div>
-                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Low Stock</p><h3 id="stat-low" class="text-2xl font-black text-slate-800">0</h3></div>
+                <div><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Low Stock</p><h3 id="stat-low" class="text-xl font-black text-slate-800">0</h3></div>
             </div>
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600"><i class="fas fa-times-circle text-xl"></i></div>
-                <div><p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Out of Stock</p><h3 id="stat-out" class="text-2xl font-black text-slate-800">0</h3></div>
+                <div><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Out of Stock</p><h3 id="stat-out" class="text-xl font-black text-slate-800">0</h3></div>
             </div>
         </div>
 
-        <!-- Bulk Actions Toolbar -->
-        <div id="bulk-toolbar" class="hidden mx-6 mt-4 p-3 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-between animate-bounce-in no-print">
+        <div id="bulk-toolbar" class="hidden mx-6 mt-4 p-3 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-between no-print">
             <div class="flex items-center gap-4 ml-2">
-                <span class="text-sm font-bold"><span id="selected-count">0</span> Items Selected</span>
+                <span class="text-sm font-bold"><span id="selected-count">0</span> Selected</span>
                 <div class="h-6 w-[1px] bg-blue-400"></div>
-                <button onclick="window.bulkUpdateStock(1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-plus-circle mr-1"></i> Add Stock</button>
-                <button onclick="window.bulkUpdateStock(-1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-minus-circle mr-1"></i> Deduct</button>
-                <button onclick="window.openBulkMoveModal()" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-folder-open mr-1"></i> Bulk Move</button>
-                <button onclick="window.bulkDelete()" class="text-xs font-bold uppercase hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors bg-white/20"><i class="fas fa-trash-alt mr-1"></i> Bulk Delete</button>
+                <button onclick="window.bulkUpdateStock(1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg"><i class="fas fa-plus-circle mr-1"></i> Add Stock</button>
+                <button onclick="window.bulkUpdateStock(-1)" class="text-xs font-bold uppercase hover:bg-white/10 px-3 py-1.5 rounded-lg"><i class="fas fa-minus-circle mr-1"></i> Deduct</button>
+                <button onclick="window.bulkDelete()" class="text-xs font-bold uppercase hover:bg-red-500 px-3 py-1.5 rounded-lg bg-white/20"><i class="fas fa-trash-alt mr-1"></i> Delete</button>
             </div>
             <button onclick="window.deselectAll()" class="text-white hover:text-blue-100 p-2"><i class="fas fa-times"></i></button>
         </div>
 
         <div class="flex-1 p-6 overflow-hidden flex flex-col">
-            <h2 id="current-category-title" class="text-lg font-bold text-slate-800 mb-4 print:block">All Inventory</h2>
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-auto">
+            <div class="flex justify-between items-end mb-4">
+                <h2 id="current-category-title" class="text-lg font-bold text-slate-800 print:block">All Inventory</h2>
+                <div id="pagination-controls" class="flex items-center gap-2 text-sm no-print">
+                    <button id="prev-page" class="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50"><i class="fas fa-chevron-left"></i></button>
+                    <span class="font-medium text-slate-600">Page <span id="current-page-display">1</span></span>
+                    <button id="next-page" class="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-auto relative">
+                <div id="table-loader" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 hidden flex items-center justify-center">
+                    <i class="fas fa-circle-notch fa-spin text-3xl text-blue-600"></i>
+                </div>
+                
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 sticky top-0 z-10">
                         <tr>
-                            <th class="px-4 py-4 text-center no-print">
-                                <input type="checkbox" id="master-checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer">
-                            </th>
-                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Code</th>
-                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs">Item Details</th>
-                            <th class="px-6 py-4 text-left font-semibold text-slate-600 uppercase tracking-wider text-xs hidden sm:table-cell">Status</th>
-                            <th class="px-6 py-4 text-center font-semibold text-slate-600 uppercase tracking-wider text-xs">Stock Qty</th>
-                            <th class="px-6 py-4 text-right font-semibold text-slate-600 uppercase tracking-wider text-xs no-print actions-column">Actions</th>
+                            <th class="px-4 py-4 text-center no-print"><input type="checkbox" id="master-checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer"></th>
+                            <th class="px-6 py-4 text-left font-bold text-slate-500 uppercase tracking-wider text-xs">Item Code</th>
+                            <th class="px-6 py-4 text-left font-bold text-slate-500 uppercase tracking-wider text-xs">Item Details</th>
+                            <th class="px-6 py-4 text-center font-bold text-slate-500 uppercase tracking-wider text-xs">Status</th>
+                            <th class="px-6 py-4 text-center font-bold text-slate-500 uppercase tracking-wider text-xs">Stock Qty</th>
+                            <th class="px-6 py-4 text-right font-bold text-slate-500 uppercase tracking-wider text-xs no-print actions-column">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="item-table-body" class="bg-white divide-y divide-slate-100">
-                        </tbody>
+                    <tbody id="item-table-body" class="bg-white divide-y divide-slate-100"></tbody>
                 </table>
             </div>
         </div>
     </main>
 
     <div id="add-item-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 m-4 transform transition-all border border-slate-100">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 m-4 transform transition-all border border-slate-100">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                <h3 id="modal-title" class="text-xl font-bold text-slate-800">Register New Rack Item</h3>
+                <h3 id="modal-title" class="text-xl font-bold text-slate-800">Register Item</h3>
                 <button id="close-modal-btn" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 hover:bg-red-50 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
             </div>
             <form id="add-item-form" class="space-y-4">
                 <input type="hidden" id="edit-item-id">
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2 sm:col-span-1">
+                    <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Code (SKU)</label>
-                        <input type="text" id="item-code" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono">
+                        <input type="text" id="item-code" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono">
                     </div>
-                    <div class="col-span-2 sm:col-span-1">
+                    <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-                        <select id="item-category" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
-                        </select>
+                        <select id="item-category" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"></select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Name / Description</label>
-                    <input type="text" id="item-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Item Name</label>
+                    <input type="text" id="item-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-bold">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                
+                <div class="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pack Size</label>
-                        <input type="text" id="item-pack-size" placeholder="e.g. 500ml" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Cost Price (LKR)</label>
+                        <input type="number" step="0.01" id="item-cost" value="0" min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Qty</label>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Selling Price (LKR)</label>
+                        <input type="number" step="0.01" id="item-price" value="0" min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Size / Pack</label>
+                        <input type="text" id="item-pack-size" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Stock Qty</label>
                         <input type="number" id="item-quantity" value="0" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Low Alert At</label>
-                    <input type="number" id="item-threshold" value="5" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Low Alert At</label>
+                        <input type="number" id="item-threshold" value="5" min="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                    </div>
                 </div>
                 <div class="pt-4 border-t border-slate-100 mt-6">
                     <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-bold shadow-md shadow-blue-200">Save to Database</button>
@@ -211,42 +227,21 @@
     <div id="barcode-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl p-8 m-4 text-center max-w-sm w-full">
             <h3 id="barcode-title" class="text-lg font-bold text-slate-800 mb-4 truncate"></h3>
-            <div class="bg-white p-4 rounded-lg border-2 border-dashed border-slate-200 inline-block mb-6">
-                <svg id="barcode-svg"></svg>
-            </div>
+            <div class="bg-white p-4 rounded-lg border-2 border-dashed border-slate-200 inline-block mb-6"><svg id="barcode-svg"></svg></div>
             <div class="flex gap-3">
-                <button onclick="window.printBarcode()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-700 font-medium"><i class="fas fa-print mr-2"></i> Print Label</button>
+                <button onclick="window.printBarcode()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-700 font-medium"><i class="fas fa-print mr-2"></i> Print</button>
                 <button onclick="document.getElementById('barcode-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg hover:bg-slate-200 font-medium">Close</button>
             </div>
         </div>
     </div>
 
-    <!-- Bulk Move Modal -->
-    <div id="bulk-move-modal" class="fixed inset-0 bg-slate-900 bg-opacity-60 z-[110] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4">Move Selected to Category</h3>
-            <div id="bulk-category-container" class="space-y-2 max-h-60 overflow-y-auto pr-2">
-                <!-- Categories injected here -->
-            </div>
-            <div class="mt-6 flex gap-3">
-                <button onclick="document.getElementById('bulk-move-modal').classList.add('hidden')" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Confirmation Modal -->
     <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 border border-slate-100">
-            <div class="p-6 text-center">
-                <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
-                    <i class="fas fa-exclamation-triangle text-2xl"></i>
-                </div>
-                <h3 id="confirm-title" class="text-xl font-bold text-slate-800 mb-2">Are you sure?</h3>
-                <p id="confirm-message" class="text-slate-500 text-sm mb-6">This action cannot be undone.</p>
-                <div class="flex gap-3">
-                    <button id="confirm-cancel-btn" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition font-bold text-sm">Cancel</button>
-                    <button id="confirm-ok-btn" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200">Confirm</button>
-                </div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 border border-slate-100 p-6 text-center">
+            <h3 id="confirm-title" class="text-xl font-bold text-slate-800 mb-2">Are you sure?</h3>
+            <p id="confirm-message" class="text-slate-500 text-sm mb-6"></p>
+            <div class="flex gap-3">
+                <button id="confirm-cancel-btn" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 font-bold">Cancel</button>
+                <button id="confirm-ok-btn" class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold">Confirm</button>
             </div>
         </div>
     </div>
@@ -255,8 +250,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getDatabase, ref, onValue, push, set, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
+        // FIREBASE SETUP
         const firebaseConfig = {
             apiKey: "AIzaSyBdm-R6d3nntIpXp3SnPs940WUkGC4vMAk",
             authDomain: "inventory-20678.firebaseapp.com",
@@ -266,171 +262,273 @@
             messagingSenderId: "350200719311",
             appId: "1:350200719311:web:d4838e9c44f65219a9d4ba"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Core State
-        let currentFilter = 'All';
-        let allItems = [];
-        let allCategories = [];
-        let isEditing = false;
+        // DEXIE LOCAL CACHE SETUP
+        const localDB = new Dexie('PrasaTekMedicalDB');
+        localDB.version(1).stores({
+            items: 'id, itemCode, category, itemName, quantity'
+        });
 
-        // --- UI Utilities ---
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `min-w-[280px] bg-white border-l-4 ${type === 'success' ? 'border-emerald-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'} text-slate-800 px-5 py-4 rounded-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] font-semibold text-sm flex items-center gap-4 transform translate-y-10 opacity-0 transition-all duration-500`;
-            const icon = type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info';
-            toast.innerHTML = `
-                <div class="${type === 'success' ? 'bg-emerald-50 text-emerald-500' : type === 'error' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'} rounded-full w-9 h-9 flex items-center justify-center shrink-0">
-                    <i class="fas fa-${icon} text-sm"></i>
-                </div> 
-                <div class="flex-1">${message}</div>
-            `;
-            document.getElementById('toast-container').appendChild(toast);
-            
-            requestAnimationFrame(() => { 
-                toast.classList.remove('translate-y-10', 'opacity-0');
-                toast.classList.add('translate-y-0', 'opacity-100');
-            });
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2', 'scale-95');
-                setTimeout(() => toast.remove(), 500);
-            }, 4000);
+        // STATE MANAGEMENT
+        let currentFilter = 'All';
+        let allCategories = [];
+        let selectedIds = new Set();
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 50;
+
+        // SEED MEDICAL DATA IF EMPTY (Matches Image)
+        const defaultCategories = ["Eye Drop", "Spacer Device", "Nasal Spray", "DP CAPS", "Inhaler", "Other"];
+        
+        onValue(ref(db, 'categories'), (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                // Auto-populate based on the user's image if database is empty
+                defaultCategories.forEach(cat => push(ref(db, 'categories'), { name: cat }));
+            } else {
+                allCategories = Object.values(data).map(c => c.name);
+                renderSidebar();
+            }
+        });
+
+        // UTILITIES
+        const formatLKR = (val) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(val || 0);
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => { clearTimeout(timeout); func(...args); };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
 
-        const showAlert = (title, message, type = 'info') => {
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `min-w-[280px] bg-white border-l-4 ${type === 'success' ? 'border-emerald-500' : 'border-red-500'} text-slate-800 px-5 py-4 rounded-xl shadow-lg font-semibold text-sm flex items-center gap-4 transition-all duration-500`;
+            toast.innerHTML = `<div class="${type === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'} rounded-full w-9 h-9 flex items-center justify-center shrink-0"><i class="fas fa-${type === 'success' ? 'check' : 'times'} text-sm"></i></div><div class="flex-1">${message}</div>`;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        const showConfirm = (title, message) => {
             return new Promise((resolve) => {
                 const modal = document.getElementById('confirm-modal');
-                const titleEl = document.getElementById('confirm-title');
-                const messageEl = document.getElementById('confirm-message');
-                const okBtn = document.getElementById('confirm-ok-btn');
-                const cancelBtn = document.getElementById('confirm-cancel-btn');
-                const iconDiv = modal.querySelector('.text-2xl').parentElement;
-
-                titleEl.innerText = title;
-                messageEl.innerText = message;
-                cancelBtn.classList.add('hidden'); // Only one button for alert
-                
-                if (type === 'error') {
-                    okBtn.className = "flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200";
-                    iconDiv.className = "w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100";
-                    iconDiv.innerHTML = '<i class="fas fa-times-circle text-2xl"></i>';
-                } else {
-                    okBtn.className = "flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold text-sm shadow-lg shadow-blue-200";
-                    iconDiv.className = "w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100";
-                    iconDiv.innerHTML = '<i class="fas fa-info-circle text-2xl"></i>';
-                }
-
+                document.getElementById('confirm-title').innerText = title;
+                document.getElementById('confirm-message').innerText = message;
                 modal.classList.remove('hidden');
-                setTimeout(() => modal.firstElementChild.classList.remove('scale-95'), 10);
-
-                const close = () => {
-                    modal.firstElementChild.classList.add('scale-95');
-                    setTimeout(() => {
-                        modal.classList.add('hidden');
-                        cancelBtn.classList.remove('hidden'); // Reset for confirm
-                        resolve();
-                    }, 200);
-                };
-
-                okBtn.onclick = close;
-                modal.onclick = (e) => e.target === modal && close();
+                
+                const close = (res) => { modal.classList.add('hidden'); resolve(res); };
+                document.getElementById('confirm-ok-btn').onclick = () => close(true);
+                document.getElementById('confirm-cancel-btn').onclick = () => close(false);
             });
         };
 
-        const showConfirm = (title, message, isDanger = true) => {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('confirm-modal');
-                const titleEl = document.getElementById('confirm-title');
-                const messageEl = document.getElementById('confirm-message');
-                const okBtn = document.getElementById('confirm-ok-btn');
-                const cancelBtn = document.getElementById('confirm-cancel-btn');
-                const iconDiv = modal.querySelector('.text-2xl').parentElement;
-
-                titleEl.innerText = title;
-                messageEl.innerText = message;
-                cancelBtn.classList.remove('hidden');
-                
-                if (isDanger) {
-                    okBtn.innerText = 'Confirm';
-                    okBtn.className = "flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-bold text-sm shadow-lg shadow-red-200";
-                    iconDiv.className = "w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100";
-                    iconDiv.innerHTML = '<i class="fas fa-exclamation-triangle text-2xl"></i>';
-                } else {
-                    okBtn.innerText = 'OK';
-                    okBtn.className = "flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold text-sm shadow-lg shadow-blue-200";
-                    iconDiv.className = "w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100";
-                    iconDiv.innerHTML = '<i class="fas fa-question-circle text-2xl"></i>';
-                }
-
-                modal.classList.remove('hidden');
-                setTimeout(() => modal.firstElementChild.classList.remove('scale-95'), 10);
-
-                const close = (result) => {
-                    modal.firstElementChild.classList.add('scale-95');
-                    setTimeout(() => {
-                        modal.classList.add('hidden');
-                        resolve(result);
-                    }, 200);
-                };
-
-                okBtn.onclick = () => close(true);
-                cancelBtn.onclick = () => close(false);
-                modal.onclick = (e) => e.target === modal && close(false);
-            });
-        };
-
-        // Sidebar Toggle Engine
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('sidebar-toggle-btn');
-        const toggleIcon = document.getElementById('toggle-icon');
-        
-        const updateSidebarState = (isCollapsed) => {
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-                toggleIcon.classList.add('rotate-180');
-            } else {
-                sidebar.classList.remove('collapsed');
-                toggleIcon.classList.remove('rotate-180');
-            }
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
-        };
-
-        const initialCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        updateSidebarState(initialCollapsed);
-
-        toggleBtn.addEventListener('click', () => {
-            updateSidebarState(!sidebar.classList.contains('collapsed'));
+        // UI BINDINGS
+        document.getElementById('sidebar-toggle-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.toggle('hidden');
         });
 
-        // Mobile Menu
-        const toggleSidebarMobile = () => {
-            sidebar.classList.toggle('-translate-x-full');
-            document.getElementById('sidebar-overlay').classList.toggle('hidden');
-        };
-        document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebarMobile);
-        document.getElementById('sidebar-overlay').addEventListener('click', toggleSidebarMobile);
+        function renderSidebar() {
+            const list = document.getElementById('category-list');
+            const select = document.getElementById('item-category');
+            
+            list.innerHTML = `<li class="cursor-pointer px-3 py-2 rounded-lg ${currentFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'} flex items-center gap-3" onclick="window.setFilter('All')"><div class="w-6 h-6 rounded ${currentFilter === 'All' ? 'bg-blue-200' : 'bg-blue-50'} flex items-center justify-center text-blue-500"><i class="fas fa-layer-group text-xs"></i></div> All Inventory</li>`;
+            select.innerHTML = '<option value="" disabled selected>Select category...</option>';
+            
+            allCategories.forEach(cat => {
+                const isActive = currentFilter === cat;
+                list.innerHTML += `<li class="cursor-pointer px-3 py-2 rounded-lg ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'} flex items-center gap-3" onclick="window.setFilter('${cat}')"><div class="w-6 h-6 rounded bg-slate-100 flex items-center justify-center"><i class="fas fa-tag text-xs ${isActive ? 'text-blue-500' : 'text-slate-400'}"></i></div> <span class="truncate">${cat}</span></li>`;
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
 
-        // Add Modal
+        document.getElementById('add-category-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('new-category-name');
+            if (input.value.trim()) {
+                push(ref(db, 'categories'), { name: input.value.trim() });
+                input.value = ''; showToast('Category created');
+            }
+        });
+
+        // HIGH PERFORMANCE DATA SYNC
+        onValue(ref(db, 'items'), async (snapshot) => {
+            document.getElementById('table-loader').classList.remove('hidden');
+            const data = snapshot.val();
+            
+            await localDB.items.clear();
+            if (data) {
+                const bulkData = Object.entries(data).map(([id, item]) => ({ id, ...item }));
+                await localDB.items.bulkPut(bulkData);
+            }
+            
+            updateAnalytics();
+            renderItems();
+            document.getElementById('table-loader').classList.add('hidden');
+        });
+
+        async function updateAnalytics() {
+            const allItems = await localDB.items.toArray();
+            let totalValue = 0, low = 0, out = 0;
+            
+            allItems.forEach(i => {
+                totalValue += (i.quantity || 0) * (i.costPrice || 0);
+                if (i.quantity <= 0) out++;
+                else if (i.quantity <= (i.threshold || 5)) low++;
+            });
+
+            document.getElementById('stat-total').innerText = allItems.length;
+            document.getElementById('stat-value').innerText = formatLKR(totalValue);
+            document.getElementById('stat-low').innerText = low;
+            document.getElementById('stat-out').innerText = out;
+        }
+
+        window.setFilter = (catName) => {
+            currentFilter = catName;
+            currentPage = 1;
+            renderSidebar();
+            document.getElementById('current-category-title').innerText = catName === 'All' ? 'All Inventory' : `${catName}`;
+            renderItems();
+        };
+
+        const debouncedSearch = debounce(() => { currentPage = 1; renderItems(); }, 300);
+        document.getElementById('search-bar').addEventListener('input', debouncedSearch);
+
+        window.updateItemCategory = (id, newCat) => {
+            update(ref(db, `items/${id}`), { category: newCat });
+            showToast(`Category updated`);
+        };
+
+        async function renderItems() {
+            const tbody = document.getElementById('item-table-body');
+            const search = document.getElementById('search-bar').value.toLowerCase();
+            
+            let query = localDB.items;
+            if (currentFilter !== 'All') query = query.where('category').equals(currentFilter);
+            
+            let filtered = await query.toArray();
+            
+            if (search) {
+                filtered = filtered.filter(i => 
+                    i.itemName.toLowerCase().includes(search) || 
+                    i.itemCode.toLowerCase().includes(search)
+                );
+            }
+
+            const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+            document.getElementById('current-page-display').innerText = `${currentPage} of ${totalPages || 1}`;
+            document.getElementById('prev-page').disabled = currentPage === 1;
+            document.getElementById('next-page').disabled = currentPage === totalPages || totalPages === 0;
+            
+            const pagedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+            
+            tbody.innerHTML = '';
+            if (pagedItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400">No items found.</td></tr>`;
+                return;
+            }
+
+            pagedItems.forEach(item => {
+                const qty = item.quantity || 0;
+                const isSelected = selectedIds.has(item.id);
+                
+                // Matches exact pill style from screenshot
+                let statusBadge = '';
+                if (qty <= 0) {
+                    statusBadge = `<span class="px-3 py-1 inline-flex text-xs font-bold rounded-md bg-red-100 text-red-700"><i class="fas fa-times-circle mr-1 mt-0.5"></i> Out of Stock</span>`;
+                } else if (qty <= (item.threshold || 5)) {
+                    statusBadge = `<span class="px-3 py-1 inline-flex text-xs font-bold rounded-md bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle mr-1 mt-0.5"></i> Low Stock</span>`;
+                } else {
+                    statusBadge = `<span class="px-3 py-1 inline-flex text-xs font-bold rounded-md bg-emerald-100 text-emerald-700"><i class="fas fa-check-circle mr-1 mt-0.5"></i> In Stock</span>`;
+                }
+
+                // Inline Dropdown Matching Image
+                const catSelect = `
+                    <select onchange="window.updateItemCategory('${item.id}', this.value)" class="text-xs font-bold text-slate-600 bg-slate-100 border-none rounded px-2 py-1 cursor-pointer hover:bg-slate-200 focus:ring-0 appearance-none">
+                        ${allCategories.map(c => `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                `;
+
+                tbody.innerHTML += `
+                    <tr class="${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'} transition-colors">
+                        <td class="px-4 py-4 text-center no-print">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="window.toggleSelect('${item.id}')" class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="font-mono text-sm font-bold text-slate-600">${item.itemCode}</span>
+                            <i class="fas fa-barcode text-slate-300 ml-2 cursor-pointer hover:text-blue-500" onclick="window.showBarcode('${item.itemCode}', '${item.itemName.replace(/'/g, "\\'")}')"></i>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold text-slate-900 cursor-pointer hover:text-blue-600" onclick="window.openEditModal('${item.id}')">${item.itemName}</div>
+                            <div class="mt-2 flex items-center gap-2 no-print">
+                                ${catSelect} 
+                                <span class="text-xs font-medium text-slate-400">&bull; Size: ${item.packSize || '1'}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">${statusBadge}</td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex items-center justify-center gap-1 bg-white border border-slate-200 rounded-lg p-1 w-max mx-auto">
+                                <button onclick="window.updateStock('${item.id}', ${qty}, -1)" class="w-8 h-8 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"><i class="fas fa-minus text-xs"></i></button>
+                                <span class="font-bold text-slate-800 w-10 text-center">${qty}</span>
+                                <button onclick="window.updateStock('${item.id}', ${qty}, 1)" class="w-8 h-8 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"><i class="fas fa-plus text-xs"></i></button>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right no-print actions-column whitespace-nowrap">
+                            <button onclick="window.openEditModal('${item.id}')" class="text-slate-300 hover:text-blue-600 p-2"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteItem('${item.id}')" class="text-slate-300 hover:text-red-600 p-2"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        document.getElementById('prev-page').addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderItems(); } });
+        document.getElementById('next-page').addEventListener('click', () => { currentPage++; renderItems(); });
+
+        // ITEM MANAGEMENT
         const modal = document.getElementById('add-item-modal');
         document.getElementById('open-add-modal-btn').addEventListener('click', () => {
-            isEditing = false;
-            document.getElementById('modal-title').innerText = 'Register New Rack Item';
-            document.getElementById('submit-btn').innerText = 'Save to Database';
-            document.getElementById('edit-item-id').value = '';
             document.getElementById('add-item-form').reset();
+            document.getElementById('edit-item-id').value = '';
+            document.getElementById('modal-title').innerText = 'Register Item';
             modal.classList.remove('hidden');
         });
+        
         document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
 
-        window.openEditModal = (id) => {
-            isEditing = true;
-            const item = allItems.find(i => i.id === id);
+        document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('edit-item-id').value;
+            const itemData = {
+                itemCode: document.getElementById('item-code').value.trim(),
+                itemName: document.getElementById('item-name').value.trim(),
+                category: document.getElementById('item-category').value,
+                packSize: document.getElementById('item-pack-size').value.trim(),
+                quantity: parseInt(document.getElementById('item-quantity').value) || 0,
+                threshold: parseInt(document.getElementById('item-threshold').value) || 5,
+                costPrice: parseFloat(document.getElementById('item-cost').value) || 0,
+                sellingPrice: parseFloat(document.getElementById('item-price').value) || 0,
+            };
+
+            if (editId) {
+                await update(ref(db, `items/${editId}`), itemData);
+                showToast('Item updated');
+            } else {
+                await push(ref(db, 'items'), itemData);
+                showToast('Item created');
+            }
+            modal.classList.add('hidden');
+        });
+
+        window.openEditModal = async (id) => {
+            const item = await localDB.items.get(id);
             if (!item) return;
-            
-            document.getElementById('modal-title').innerText = 'Edit Rack Item';
-            document.getElementById('submit-btn').innerText = 'Update Item';
+            document.getElementById('modal-title').innerText = 'Edit Item';
             document.getElementById('edit-item-id').value = id;
             document.getElementById('item-code').value = item.itemCode;
             document.getElementById('item-category').value = item.category || '';
@@ -438,397 +536,74 @@
             document.getElementById('item-pack-size').value = item.packSize;
             document.getElementById('item-quantity').value = item.quantity;
             document.getElementById('item-threshold').value = item.threshold;
-            
+            document.getElementById('item-cost').value = item.costPrice || 0;
+            document.getElementById('item-price').value = item.sellingPrice || 0;
             modal.classList.remove('hidden');
         };
 
-        // --- Firebase: Categories ---
-        document.getElementById('add-category-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('new-category-name');
-            if (input.value.trim()) {
-                push(ref(db, 'categories'), { name: input.value.trim() }).then(() => {
-                    input.value = ''; showToast('Category created');
-                }).catch(e => showToast(e.message, 'error'));
-            }
-        });
-
-        onValue(ref(db, 'categories'), (snapshot) => {
-            const list = document.getElementById('category-list');
-            const select = document.getElementById('item-category');
-            list.innerHTML = `<li class="cursor-pointer px-3 py-2 rounded-lg transition-colors flex items-center gap-3 ${currentFilter === 'All' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'}" onclick="window.setFilter('All')"><div class="w-6 h-6 rounded bg-blue-100 flex items-center justify-center text-blue-500"><i class="fas fa-layer-group text-xs"></i></div> All Inventory</li>`;
-            select.innerHTML = '<option value="" disabled selected>Select category...</option>';
-            
-            const data = snapshot.val();
-            allCategories = data ? Object.values(data).map(c => c.name) : [];
-            
-            if (data) {
-                Object.entries(data).forEach(([id, cat]) => {
-                    const isActive = currentFilter === cat.name;
-                    list.innerHTML += `
-                        <li class="group cursor-pointer px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-100'}">
-                            <div class="flex items-center gap-3 flex-1 overflow-hidden" onclick="window.setFilter('${cat.name}')">
-                                <div class="w-6 h-6 rounded ${isActive ? 'bg-blue-200 text-blue-600' : 'bg-slate-200 text-slate-500'} flex items-center justify-center shrink-0"><i class="fas fa-tag text-xs"></i></div>
-                                <span class="truncate">${cat.name}</span>
-                            </div>
-                            <button onclick="window.deleteCategory('${id}')" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><i class="fas fa-trash-alt text-xs"></i></button>
-                        </li>`;
-                    select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
-                });
-            }
-        });
-
-        window.setFilter = (catName) => {
-            currentFilter = catName;
-            document.getElementById('current-category-title').innerText = catName === 'All' ? 'All Inventory' : `${catName} Items`;
-            renderItems();
-            onValue(ref(db, 'categories'), () => {}, { onlyOnce: true }); // Refresh sidebar active state
-            if(window.innerWidth < 768) toggleSidebar();
-        };
-
-        window.deleteCategory = async (id) => {
-            if (await showConfirm('Delete Category?', 'Are you sure you want to remove this category? All items in this category will remain but will be uncategorized.')) {
-                remove(ref(db, `categories/${id}`)).then(() => showToast('Category deleted'));
-            }
-        };
-
-        // --- Firebase: Items & Advanced Logic ---
-        document.getElementById('add-item-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const editId = document.getElementById('edit-item-id').value;
-            const code = document.getElementById('item-code').value.trim();
-            
-            if (!isEditing && allItems.some(item => item.itemCode.toLowerCase() === code.toLowerCase())) {
-                return showToast(`Code ${code} already in use!`, 'error');
-            }
-
-            const itemData = {
-                itemCode: code,
-                itemName: document.getElementById('item-name').value.trim(),
-                category: document.getElementById('item-category').value,
-                packSize: document.getElementById('item-pack-size').value.trim(),
-                quantity: parseInt(document.getElementById('item-quantity').value) || 0,
-                threshold: parseInt(document.getElementById('item-threshold').value) || 5,
-                updatedAt: new Date().toISOString()
-            };
-
-            if (isEditing && editId) {
-                update(ref(db, `items/${editId}`), itemData).then(() => {
-                    modal.classList.add('hidden');
-                    showToast('Item updated successfully');
-                });
-            } else {
-                push(ref(db, 'items'), itemData).then(() => {
-                    modal.classList.add('hidden');
-                    showToast('Item saved to database');
-                }).catch(e => showToast(e.message, 'error'));
-            }
-        });
-
-        onValue(ref(db, 'items'), (snapshot) => {
-            allItems = [];
-            const data = snapshot.val();
-            if (data) {
-                allItems = Object.entries(data).map(([id, item]) => ({ id, ...item }));
-                allItems.sort((a, b) => a.itemName.localeCompare(b.itemName));
-            }
-            updateAnalytics();
-            renderItems();
-        });
-
-        function updateAnalytics() {
-            document.getElementById('stat-total').innerText = allItems.length;
-            const low = allItems.filter(i => i.quantity > 0 && i.quantity <= (i.threshold || 5)).length;
-            const out = allItems.filter(i => i.quantity <= 0).length;
-            
-            document.getElementById('stat-low').innerText = low;
-            document.getElementById('stat-out').innerText = out;
-        }
-
-        // Selection Engine
-        let selectedIds = new Set();
-        const updateBulkToolbar = () => {
-            const toolbar = document.getElementById('bulk-toolbar');
-            const countEl = document.getElementById('selected-count');
-            if (selectedIds.size > 0) {
-                toolbar.classList.remove('hidden');
-                countEl.innerText = selectedIds.size;
-            } else {
-                toolbar.classList.add('hidden');
-            }
-        };
-
-        window.toggleSelect = (id) => {
-            if (selectedIds.has(id)) selectedIds.delete(id);
-            else selectedIds.add(id);
-            updateBulkToolbar();
-            renderItems(); // Refresh to show checked state
-        };
-
-        window.deselectAll = () => {
-            selectedIds.clear();
-            document.getElementById('master-checkbox').checked = false;
-            updateBulkToolbar();
-            renderItems();
-        };
-
-        document.getElementById('master-checkbox').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                const search = document.getElementById('search-bar').value.toLowerCase();
-                allItems.filter(i => 
-                    (currentFilter === 'All' || i.category === currentFilter) &&
-                    (i.itemName.toLowerCase().includes(search) || i.itemCode.toLowerCase().includes(search))
-                ).forEach(i => selectedIds.add(i.id));
-            } else {
-                selectedIds.clear();
-            }
-            updateBulkToolbar();
-            renderItems();
-        });
-
-        window.bulkUpdateStock = async (change) => {
-            const verb = change > 0 ? 'increase' : 'decrease';
-            if (await showConfirm(`Bulk ${verb}`, `Apply ${change > 0 ? '+' : ''}${change} stock to ${selectedIds.size} selected items?`, false)) {
-                const promises = Array.from(selectedIds).map(id => {
-                    const item = allItems.find(i => i.id === id);
-                    const newQty = Math.max(0, (item.quantity || 0) + change);
-                    return update(ref(db, `items/${id}`), { quantity: newQty, updatedAt: new Date().toISOString() });
-                });
-                await Promise.all(promises);
-                showToast(`Updated ${selectedIds.size} items`);
-                window.deselectAll();
-            }
-        };
-
-        window.bulkDelete = async () => {
-            if (await showConfirm('Bulk Delete', `Are you sure you want to permanently delete ${selectedIds.size} selected items?`, true)) {
-                const promises = Array.from(selectedIds).map(id => remove(ref(db, `items/${id}`)));
-                await Promise.all(promises);
-                showToast(`Deleted ${selectedIds.size} items`);
-                window.deselectAll();
-            }
-        };
-
-        window.openBulkMoveModal = () => {
-            const container = document.getElementById('bulk-category-container');
-            container.innerHTML = allCategories.map(cat => `
-                <button onclick="window.bulkMoveItems('${cat}')" class="w-full text-left px-4 py-3 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition font-medium text-slate-700 flex items-center justify-between group">
-                    ${cat}
-                    <i class="fas fa-arrow-right text-slate-300 group-hover:text-blue-500"></i>
-                </button>
-            `).join('');
-            document.getElementById('bulk-move-modal').classList.remove('hidden');
-        };
-
-        window.bulkMoveItems = async (newCat) => {
-            const promises = Array.from(selectedIds).map(id => update(ref(db, `items/${id}`), { category: newCat, updatedAt: new Date().toISOString() }));
-            await Promise.all(promises);
-            document.getElementById('bulk-move-modal').classList.add('hidden');
-            showToast(`Moved ${selectedIds.size} items to ${newCat}`);
-            window.deselectAll();
-            window.setFilter(newCat);
-        };
-
-        // Inline Updates
         window.updateStock = (id, currentQty, change) => {
-            const newQty = Math.max(0, currentQty + change);
-            update(ref(db, `items/${id}`), { quantity: newQty, updatedAt: new Date().toISOString() });
-        };
-
-        window.updateItemCategory = (id, newCat) => {
-            update(ref(db, `items/${id}`), { category: newCat, updatedAt: new Date().toISOString() });
-            showToast(`Moved to ${newCat}`);
-            if (currentFilter !== 'All' && currentFilter !== newCat) {
-                // Auto-jump to new category view
-                window.setFilter(newCat);
-            }
-        };
-
-        // Barcode Generation Engine
-        window.showBarcode = (code, name) => {
-            document.getElementById('barcode-title').innerText = name;
-            JsBarcode("#barcode-svg", code, { format: "CODE128", lineColor: "#1e293b", width: 2, height: 80, displayValue: true });
-            document.getElementById('barcode-modal').classList.remove('hidden');
-        };
-
-        window.printBarcode = () => {
-            const svgContent = document.getElementById('barcode-svg').outerHTML;
-            const printWin = window.open('', '', 'width=400,height=300');
-            printWin.document.write(`<html><head><title>Print Label</title><style>body{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;} svg{width:80%;max-height:60%;}</style></head><body>${svgContent}<div style="margin-top:10px;font-weight:bold;">${document.getElementById('barcode-title').innerText}</div></body></html>`);
-            printWin.document.close();
-            printWin.focus();
-            setTimeout(() => { printWin.print(); printWin.close(); }, 250);
-        };
-        
-        window.oldPrint = window.print;
-        window.print = () => {
-            document.getElementById('print-date').innerText = new Date().toLocaleString();
-            window.oldPrint();
-        };
-
-        window.printLowStock = () => {
-            const lowItems = allItems.filter(i => i.quantity <= (i.threshold || 5));
-            if (lowItems.length === 0) return showToast('No items currently low on stock', 'info');
-            
-            // Create a temp element for printing
-            const originalBody = document.body.innerHTML;
-            const printContent = `
-                <div style="padding: 40px; font-family: sans-serif;">
-                    <h1 style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px;">RESTOCK LIST (Low Stock Summary)</h1>
-                    <p style="text-align: center;">Generated on: ${new Date().toLocaleString()}</p>
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
-                        <thead>
-                            <tr style="background: #f1f1f1;">
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Code</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Item Name</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">On Hand</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Threshold</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${lowItems.map(i => `
-                                <tr>
-                                    <td style="border: 1px solid #ddd; padding: 12px;">${i.itemCode}</td>
-                                    <td style="border: 1px solid #ddd; padding: 12px;">${i.itemName}</td>
-                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${i.quantity}</td>
-                                    <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${i.threshold}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            const printWin = window.open('', '', 'width=800,height=600');
-            printWin.document.write(printContent);
-            printWin.document.close();
-            printWin.focus();
-            setTimeout(() => { printWin.print(); printWin.close(); }, 500);
+            update(ref(db, `items/${id}`), { quantity: Math.max(0, currentQty + change) });
         };
 
         window.deleteItem = async (id) => {
-            if (await showConfirm('Delete Item?', 'Are you sure you want to permanently delete this item from the inventory? This cannot be undone.')) {
-                remove(ref(db, `items/${id}`)).then(() => showToast('Item deleted successfully'));
+            if (await showConfirm('Delete Item', 'Delete this item permanently?')) {
+                await remove(ref(db, `items/${id}`));
+                showToast('Deleted successfully');
             }
         };
 
-        function renderItems() {
-            const tbody = document.getElementById('item-table-body');
-            tbody.innerHTML = '';
-            const search = document.getElementById('search-bar').value.toLowerCase();
-            
-            const filtered = allItems.filter(i => 
-                (currentFilter === 'All' || i.category === currentFilter) &&
-                (i.itemName.toLowerCase().includes(search) || 
-                 i.itemCode.toLowerCase().includes(search) || 
-                 (i.category && i.category.toLowerCase().includes(search)))
-            );
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400"><i class="fas fa-box-open text-4xl mb-3 block opacity-50"></i>No items match your criteria.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(item => {
-                const qty = item.quantity || 0;
-                const limit = item.threshold || 5;
-                const isSelected = selectedIds.has(item.id);
-                let statusBadge = '';
-                
-                if (qty <= 0) {
-                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-red-100 text-red-700 border border-red-200"><i class="fas fa-times-circle mr-1 mt-0.5"></i> Out of Stock</span>`;
-                } else if (qty <= limit) {
-                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-amber-100 text-amber-700 border border-amber-200"><i class="fas fa-exclamation-triangle mr-1 mt-0.5"></i> Low Stock</span>`;
-                } else {
-                    statusBadge = `<span class="badge px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200"><i class="fas fa-check-circle mr-1 mt-0.5"></i> In Stock</span>`;
-                }
-
-                const catSelect = `<select onchange="window.updateItemCategory('${item.id}', this.value)" class="text-xs font-bold text-slate-500 bg-slate-100 border-none rounded px-2 py-1 cursor-pointer hover:bg-slate-200 transition-colors focus:ring-0">
-                    ${allCategories.map(c => `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`).join('')}
-                </select>`;
-
-                tbody.innerHTML += `
-                    <tr class="${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'} transition-colors group">
-                        <td class="px-4 py-4 text-center no-print">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="window.toggleSelect('${item.id}')" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer">
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-2">
-                                <span class="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded">${item.itemCode}</span>
-                                <button onclick="window.showBarcode('${item.itemCode}', '${item.itemName.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-blue-600 no-print" title="Generate Barcode"><i class="fas fa-barcode"></i></button>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-slate-900 cursor-pointer hover:text-blue-600" onclick="window.openEditModal('${item.id}')">${item.itemName}</div>
-                            <div class="text-xs mt-1 no-print">${catSelect} <span class="text-slate-400 ml-1">• Size: ${item.packSize}</span></div>
-                            <div class="hidden print:block text-xs text-slate-500">${item.category} • Size: ${item.packSize}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap hidden sm:table-cell">${statusBadge}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-center">
-                            <div class="flex items-center justify-center gap-3 bg-slate-100 rounded-lg p-1 w-max mx-auto no-print border border-slate-200">
-                                <button onclick="window.updateStock('${item.id}', ${qty}, -1)" class="w-7 h-7 flex items-center justify-center rounded bg-white text-slate-600 hover:text-red-600 shadow-sm border border-slate-200 transition"><i class="fas fa-minus text-xs"></i></button>
-                                <span class="font-bold text-slate-800 w-8 text-center">${qty}</span>
-                                <button onclick="window.updateStock('${item.id}', ${qty}, 1)" class="w-7 h-7 flex items-center justify-center rounded bg-white text-slate-600 hover:text-emerald-600 shadow-sm border border-slate-200 transition"><i class="fas fa-plus text-xs"></i></button>
-                            </div>
-                            <span class="hidden print:block text-center font-bold">${qty}</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right no-print actions-column">
-                            <div class="flex items-center justify-end gap-1">
-                                <button onclick="window.openEditModal('${item.id}')" class="text-slate-400 hover:text-blue-600 transition p-2 rounded hover:bg-blue-50" title="Edit Item"><i class="fas fa-edit text-xs"></i></button>
-                                <button onclick="window.deleteItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition p-2 rounded hover:bg-red-50" title="Delete Item"><i class="fas fa-trash-alt text-xs"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById('search-bar').addEventListener('input', renderItems);
-
-        // --- Advanced Excel IO ---
-        document.getElementById('export-btn').addEventListener('click', () => {
-            if(allItems.length === 0) return showToast('Database is empty', 'error');
-            const data = allItems.map(i => ({
+        // EXPORT & BARCODE
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            const items = await localDB.items.toArray();
+            const data = items.map(i => ({
                 Code: i.itemCode, Name: i.itemName, Category: i.category, 
-                Size: i.packSize, Quantity: i.quantity, LowStockAlert: i.threshold
+                Qty: i.quantity, Cost_LKR: i.costPrice, Selling_LKR: i.sellingPrice
             }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
             XLSX.writeFile(wb, `PrasaTek_Inventory_${new Date().toISOString().split('T')[0]}.xlsx`);
-            showToast('Excel report downloaded');
         });
+        
+        window.showBarcode = (code, name) => {
+            document.getElementById('barcode-title').innerText = name;
+            JsBarcode("#barcode-svg", code, { format: "CODE128", width: 2, height: 80, displayValue: true });
+            document.getElementById('barcode-modal').classList.remove('hidden');
+        };
 
-        document.getElementById('import-file').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                let added = 0, skipped = 0;
+        // SELECTION LOGIC
+        window.toggleSelect = (id) => {
+            if (selectedIds.has(id)) selectedIds.delete(id);
+            else selectedIds.add(id);
+            document.getElementById('bulk-toolbar').classList.toggle('hidden', selectedIds.size === 0);
+            document.getElementById('selected-count').innerText = selectedIds.size;
+            renderItems();
+        };
 
-                jsonData.forEach(row => {
-                    const code = String(row.Code || row.itemCode || '').trim();
-                    if (!code) return;
-                    if (allItems.some(i => i.itemCode.toLowerCase() === code.toLowerCase())) { skipped++; return; }
-                    
-                    push(ref(db, 'items'), {
-                        itemCode: code,
-                        itemName: String(row.Name || row.itemName || 'Unnamed Item'),
-                        category: String(row.Category || row.category || 'Uncategorized'),
-                        packSize: String(row.Size || row.packSize || '-'),
-                        quantity: parseInt(row.Quantity || row.quantity) || 0,
-                        threshold: parseInt(row.LowStockAlert || row.threshold) || 5
-                    });
-                    added++;
-                });
-                showToast(`Import Success: ${added} added, ${skipped} skipped.`);
-                e.target.value = ''; 
-            };
-            reader.readAsArrayBuffer(file);
-        });
+        window.deselectAll = () => {
+            selectedIds.clear();
+            document.getElementById('bulk-toolbar').classList.add('hidden');
+            document.getElementById('master-checkbox').checked = false;
+            renderItems();
+        };
+
+        window.bulkDelete = async () => {
+            if (await showConfirm('Bulk Delete', `Delete ${selectedIds.size} items?`)) {
+                const promises = Array.from(selectedIds).map(id => remove(ref(db, `items/${id}`)));
+                await Promise.all(promises);
+                window.deselectAll();
+            }
+        };
+
+        window.bulkUpdateStock = async (change) => {
+            const promises = Array.from(selectedIds).map(async id => {
+                const item = await localDB.items.get(id);
+                return update(ref(db, `items/${id}`), { quantity: Math.max(0, (item.quantity || 0) + change) });
+            });
+            await Promise.all(promises);
+            window.deselectAll();
+        };
+
     </script>
 </body>
 </html>
