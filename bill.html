@@ -1,138 +1,230 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrasaTek POS - Mobile Billing</title>
+    <title>PrasaTek Mobile POS V4</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: {} }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        /* Mobile App Feel */
+        /* Native Mobile App Feel */
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
         
-        /* Custom Scrollbar for Cart */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        /* Hidden Scrollbars for sleek look */
+        ::-webkit-scrollbar { display: none; }
+        * { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Scanner Tweaks */
-        #reader { width: 100%; border-radius: 0.75rem; overflow: hidden; border: none !important; }
-        #reader video { object-fit: cover; border-radius: 0.75rem; }
+        #reader { width: 100%; border-radius: 1rem; overflow: hidden; border: none !important; }
+        #reader video { object-fit: cover; border-radius: 1rem; }
         
-        /* Print Receipt Styling (Thermal Printer Format) */
+        /* Bottom Sheet Animation */
+        .bottom-sheet { transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bottom-sheet.active { transform: translateY(0); }
+        
+        /* Thermal Print Layout */
         @media print {
             body { background: white !important; font-size: 12px; color: black !important; padding: 0 !important; margin: 0 !important; }
-            #app-layout, #toast-container { display: none !important; }
+            #app-layout, #toast-container, #checkout-sheet, .sheet-backdrop { display: none !important; }
             #print-receipt { display: block !important; width: 100%; max-width: 80mm; margin: 0 auto; font-family: 'Courier New', Courier, monospace; }
             
-            .receipt-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-            .receipt-title { font-size: 18px; font-weight: bold; margin: 0; }
-            .receipt-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-            .receipt-table th, .receipt-table td { padding: 4px 0; border-bottom: 1px dotted #ccc; text-align: left; }
-            .receipt-table .right { text-align: right; }
-            .receipt-total { border-top: 1px dashed #000; padding-top: 5px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; margin-bottom: 15px; }
-            .receipt-footer { text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+            .r-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .r-title { font-size: 18px; font-weight: bold; margin: 0; }
+            .r-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            .r-table th, .r-table td { padding: 4px 0; border-bottom: 1px dotted #ccc; text-align: left; }
+            .r-table .right { text-align: right; }
+            .r-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+            .r-total { border-top: 1px dashed #000; padding-top: 5px; font-weight: bold; font-size: 16px; margin-top: 5px; }
+            .r-footer { text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px; }
             @page { margin: 0; }
         }
         #print-receipt { display: none; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-300">
 
     <audio id="beep-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
-    <div id="app-layout" class="flex flex-col h-full w-full max-w-2xl mx-auto bg-white shadow-xl relative">
+    <div id="app-layout" class="flex flex-col h-full w-full max-w-lg mx-auto bg-white dark:bg-slate-900 shadow-2xl relative">
         
-        <header class="bg-slate-900 text-white p-4 flex justify-between items-center z-10 shadow-md shrink-0">
+        <header class="bg-slate-900 dark:bg-black text-white p-4 flex justify-between items-center z-10 shrink-0 rounded-b-2xl shadow-md">
             <div>
-                <h1 class="text-lg font-black tracking-wider text-blue-400">PrasaTek POS</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Mobile Billing</p>
+                <h1 class="text-xl font-black tracking-wider text-blue-400">PrasaTek POS</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Mobile Billing Engine</p>
             </div>
-            <a href="index.html" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-lg transition-colors flex items-center justify-center w-10 h-10">
-                <i class="fas fa-home text-slate-300"></i>
-            </a>
+            <div class="flex gap-2">
+                <button id="theme-toggle" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl transition-colors w-10 h-10 flex items-center justify-center">
+                    <i class="fas fa-moon dark:hidden text-amber-400"></i>
+                    <i class="fas fa-sun hidden dark:block text-amber-400"></i>
+                </button>
+                <a href="index.html" class="bg-blue-600 hover:bg-blue-500 p-2 rounded-xl transition-colors flex items-center justify-center w-10 h-10 shadow-lg shadow-blue-500/30">
+                    <i class="fas fa-desktop text-white"></i>
+                </a>
+            </div>
         </header>
 
-        <div class="p-4 bg-slate-50 border-b border-slate-200 shrink-0">
-            <div id="scanner-container" class="mb-3 hidden bg-black rounded-xl shadow-inner relative">
+        <div class="p-4 bg-transparent shrink-0 z-10 relative -mt-2">
+            <div id="scanner-container" class="mb-3 hidden bg-black rounded-2xl shadow-2xl relative overflow-hidden border-4 border-slate-800">
                 <div id="reader"></div>
-                <button onclick="toggleScanner()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10">
+                <button onclick="toggleScanner()" class="absolute top-3 right-3 bg-red-500/80 backdrop-blur-md text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg z-10">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="flex gap-2">
-                <button onclick="toggleScanner()" id="start-scan-btn" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-blue-200 flex items-center justify-center w-14 shrink-0 transition-transform active:scale-95">
-                    <i class="fas fa-camera text-lg"></i>
+            <div class="flex gap-2 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+                <button onclick="toggleScanner()" id="start-scan-btn" class="bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center w-14 h-14 shrink-0 transition-transform active:scale-90 shadow-md">
+                    <i class="fas fa-camera text-xl"></i>
                 </button>
-                <div class="relative flex-1">
-                    <i class="fas fa-barcode absolute left-3 top-3.5 text-slate-400"></i>
-                    <input type="text" id="manual-code" placeholder="Scan or enter code..." class="w-full pl-10 pr-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono text-sm outline-none shadow-sm">
+                <div class="relative flex-1 flex items-center">
+                    <i class="fas fa-barcode absolute left-4 text-slate-400 dark:text-slate-500 text-lg"></i>
+                    <input type="text" id="manual-code" placeholder="Enter Code..." class="w-full pl-12 pr-4 h-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-mono text-sm outline-none dark:text-white">
                 </div>
-                <button onclick="manualAdd()" class="bg-slate-800 text-white px-4 py-3 rounded-xl font-bold shadow-md flex items-center justify-center w-14 shrink-0 transition-transform active:scale-95">
-                    <i class="fas fa-plus"></i>
+                <button onclick="manualAdd()" class="bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-bold flex items-center justify-center w-14 h-14 shrink-0 transition-transform active:scale-90 shadow-md">
+                    <i class="fas fa-plus text-xl"></i>
                 </button>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 bg-slate-50 pb-32" id="cart-container">
-            <div id="empty-cart" class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
-                <i class="fas fa-shopping-cart text-5xl mb-4"></i>
-                <p class="font-bold">Cart is empty</p>
-                <p class="text-xs">Scan items to begin billing</p>
+        <div class="flex-1 overflow-y-auto px-4 pb-40" id="cart-container">
+            <div id="empty-cart" class="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600">
+                <div class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                    <i class="fas fa-shopping-basket text-4xl"></i>
+                </div>
+                <p class="font-bold text-lg text-slate-400">Cart is empty</p>
+                <p class="text-xs">Scan or enter items to begin</p>
             </div>
-            <div id="cart-items" class="space-y-3 hidden">
+            
+            <div id="cart-items" class="space-y-3 hidden mt-2">
                 </div>
         </div>
 
-        <div class="absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20">
-            <div class="flex justify-between items-end mb-3">
-                <span class="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Amount</span>
-                <span id="cart-total" class="text-3xl font-black text-emerald-600">රු 0.00</span>
+        <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 z-20 pb-6 pt-12">
+            <button onclick="openCheckout()" id="checkout-trigger-btn" disabled class="w-full bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white p-4 rounded-2xl font-black text-lg shadow-[0_10px_25px_-5px_rgba(16,185,129,0.5)] disabled:shadow-none transition-all active:scale-95 flex items-center justify-between">
+                <div class="flex items-center gap-2"><i class="fas fa-shopping-bag"></i> Checkout</div>
+                <span id="cart-total-btn" class="bg-white/20 px-3 py-1 rounded-lg">රු 0.00</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="checkout-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden sheet-backdrop transition-opacity opacity-0" onclick="closeCheckout()"></div>
+    
+    <div id="checkout-sheet" class="fixed bottom-0 left-0 w-full max-w-lg mx-auto bg-white dark:bg-slate-900 z-50 rounded-t-3xl shadow-2xl bottom-sheet flex flex-col max-h-[90vh]">
+        <div class="p-4 flex justify-between items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <h2 class="text-xl font-black dark:text-white">Complete Sale</h2>
+            <button onclick="closeCheckout()" class="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 flex items-center justify-center"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1 space-y-6">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Customer Info (Optional)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="cust-name" placeholder="Name" class="w-1/2 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+                    <input type="tel" id="cust-phone" placeholder="Phone" class="w-1/2 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+                </div>
             </div>
-            <button onclick="completeBill()" id="checkout-btn" disabled class="w-full bg-emerald-500 disabled:bg-slate-300 text-white py-4 rounded-xl font-black text-lg shadow-lg disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2">
-                <i class="fas fa-receipt"></i> Complete & Print Bill
+
+            <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl space-y-3">
+                <div class="flex justify-between text-slate-500 font-bold text-sm">
+                    <span>Subtotal</span>
+                    <span id="sheet-subtotal">රු 0.00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-500 font-bold text-sm">
+                    <span>Discount (LKR)</span>
+                    <input type="number" id="bill-discount" value="0" min="0" oninput="calculateFinal()" class="w-24 p-1 text-right bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded outline-none dark:text-white">
+                </div>
+                <div class="h-px w-full bg-slate-200 dark:bg-slate-700 my-2"></div>
+                <div class="flex justify-between text-slate-900 dark:text-white font-black text-xl">
+                    <span>Total To Pay</span>
+                    <span id="sheet-final-total" class="text-blue-600 dark:text-blue-400">රු 0.00</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment Method</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="pay-cash" onclick="setPayment('Cash')" class="py-3 rounded-xl font-bold border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-money-bill-wave"></i> Cash</button>
+                    <button id="pay-card" onclick="setPayment('Card')" class="py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> Card</button>
+                </div>
+            </div>
+
+            <div id="cash-tender-section" class="animate-fade-in">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase">Amount Tendered</label>
+                    <button onclick="setExactCash()" class="text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300 font-bold">Exact Cash</button>
+                </div>
+                <input type="number" id="tender-amount" placeholder="0.00" oninput="calculateFinal()" class="w-full p-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xl font-black text-slate-800 dark:text-white outline-none focus:border-blue-500 text-center">
+                
+                <div class="mt-4 flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                    <span class="font-bold text-emerald-700 dark:text-emerald-400">Change Due:</span>
+                    <span id="change-due" class="font-black text-2xl text-emerald-600 dark:text-emerald-400">රු 0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+            <button onclick="completeBill()" id="final-checkout-btn" class="w-full bg-slate-900 dark:bg-blue-600 text-white p-4 rounded-xl font-black text-lg shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                <i class="fas fa-print"></i> Process & Print Receipt
             </button>
         </div>
     </div>
 
     <div id="print-receipt">
-        <div class="receipt-header">
-            <h2 class="receipt-title">PRASATEK MEDICAL</h2>
-            <p style="margin: 3px 0 0 0;">Pharmacy & Care</p>
-            <p id="receipt-date" style="margin: 3px 0 0 0;"></p>
+        <div class="r-header">
+            <h2 class="r-title">PRASATEK MEDICAL</h2>
+            <p style="margin: 3px 0 0 0;">Advanced Pharmacy & Care</p>
+            <p id="r-date" style="margin: 3px 0 0 0; font-size: 10px;"></p>
         </div>
-        <table class="receipt-table">
+        
+        <div id="r-customer-info" style="margin-bottom: 10px; font-size: 11px; display: none;">
+            <span id="r-cust-name"></span> <span id="r-cust-phone"></span>
+        </div>
+
+        <table class="r-table">
             <thead>
                 <tr>
                     <th>Item</th>
                     <th class="right">Qty</th>
-                    <th class="right">Price</th>
+                    <th class="right">Amount</th>
                 </tr>
             </thead>
-            <tbody id="receipt-body"></tbody>
+            <tbody id="r-body"></tbody>
         </table>
-        <div class="receipt-total">
-            <span>TOTAL:</span>
-            <span id="receipt-grand-total"></span>
+        
+        <div style="margin-top: 10px;">
+            <div class="r-row"><span>Subtotal:</span> <span id="r-subtotal"></span></div>
+            <div class="r-row" id="r-discount-row" style="display: none;"><span>Discount:</span> <span id="r-discount"></span></div>
+            <div class="r-row r-total"><span>TOTAL:</span> <span id="r-grand-total"></span></div>
         </div>
-        <div class="receipt-footer">
-            <p>Thank you for your business!</p>
-            <p>Generated by PrasaTek ERP</p>
+
+        <div style="margin-top: 10px; border-top: 1px dotted #000; padding-top: 5px;">
+            <div class="r-row"><span>Payment Method:</span> <span id="r-method"></span></div>
+            <div class="r-row" id="r-tendered-row" style="display: none;"><span>Tendered:</span> <span id="r-tendered"></span></div>
+            <div class="r-row" id="r-change-row" style="display: none;"><span>Change:</span> <span id="r-change"></span></div>
+        </div>
+
+        <div class="r-footer">
+            <p style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">Thank you for your visit!</p>
+            <p>System by PrasaTek Solutions V4</p>
         </div>
     </div>
 
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 pointer-events-none w-11/12 max-w-sm"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // FIREBASE SETUP (Matches main system)
+        // FIREBASE SETUP
         const firebaseConfig = {
             apiKey: "AIzaSyBdm-R6d3nntIpXp3SnPs940WUkGC4vMAk",
             authDomain: "inventory-20678.firebaseapp.com",
@@ -144,90 +236,79 @@
         const db = getDatabase(app);
 
         // STATE
-        let inventory = {}; // Fast lookup map: itemCode -> itemData
-        let cart = {}; // cart items: itemCode -> { ...itemData, cartQty }
+        let inventory = {}; 
+        let cart = {}; 
         let html5QrcodeScanner = null;
         let isScanning = false;
         let lastScannedCode = '';
         let scanDebounceTimer = null;
+        
+        // Financial State
+        let subtotal = 0;
+        let currentPaymentMethod = 'Cash';
 
         const beepSound = document.getElementById('beep-sound');
 
-        // LOAD INVENTORY FROM FIREBASE
+        // Dark Mode Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        if(localStorage.getItem('theme') === 'dark') html.classList.add('dark');
+        themeToggle.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        // Haptic Feedback wrapper
+        const vibe = (ms = 50) => { if(navigator.vibrate) navigator.vibrate(ms); };
+
+        // LOAD INVENTORY
         onValue(ref(db, 'items'), (snapshot) => {
             const data = snapshot.val();
             inventory = {};
-            if (data) {
-                Object.entries(data).forEach(([id, item]) => {
-                    if (item.itemCode) {
-                        inventory[item.itemCode] = { id, ...item };
-                    }
-                });
-            }
+            if (data) Object.entries(data).forEach(([id, item]) => { if (item.itemCode) inventory[item.itemCode] = { id, ...item }; });
         });
 
-        // TOAST NOTIFICATIONS
+        // TOAST NOTIFICATIONS (Centered for Mobile)
         function showToast(msg, type = 'success') {
+            vibe(type === 'success' ? [30] : [50, 50]);
             const toast = document.createElement('div');
-            toast.className = `bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl font-bold text-sm flex items-center gap-3 animate-bounce-in max-w-xs ml-auto border-l-4 ${type === 'success' ? 'border-emerald-500' : 'border-red-500'}`;
-            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle text-emerald-400' : 'times-circle text-red-400'}"></i> ${msg}`;
+            toast.className = `bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 animate-fade-in border-l-4 ${type === 'success' ? 'border-emerald-500' : 'border-red-500'}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle text-emerald-400' : 'exclamation-triangle text-red-500'} text-lg"></i> <span class="flex-1">${msg}</span>`;
             document.getElementById('toast-container').appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-10px)';
-                toast.style.transition = 'all 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 2000);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-20px)'; toast.style.transition = 'all 0.3s ease'; setTimeout(() => toast.remove(), 300); }, 2000);
         }
 
-        // BARCODE SCANNER ENGINE
+        // SCANNER ENGINE
         window.toggleScanner = () => {
+            vibe();
             const container = document.getElementById('scanner-container');
             const btn = document.getElementById('start-scan-btn');
             
             if (isScanning) {
                 html5QrcodeScanner.stop().then(() => {
-                    isScanning = false;
-                    container.classList.add('hidden');
-                    btn.classList.remove('bg-red-500');
-                    btn.classList.add('bg-blue-600');
-                    btn.innerHTML = '<i class="fas fa-camera text-lg"></i>';
+                    isScanning = false; container.classList.add('hidden');
+                    btn.className = "bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center w-14 h-14 shrink-0 transition-transform active:scale-90 shadow-md";
+                    btn.innerHTML = '<i class="fas fa-camera text-xl"></i>';
                 });
             } else {
                 container.classList.remove('hidden');
-                btn.classList.remove('bg-blue-600');
-                btn.classList.add('bg-red-500');
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>'; // Loading state
+                btn.className = "bg-red-500 text-white rounded-xl font-bold flex items-center justify-center w-14 h-14 shrink-0 transition-transform active:scale-90 shadow-md";
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i>';
                 
                 html5QrcodeScanner = new Html5Qrcode("reader");
-                const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
-                
-                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
-                .then(() => {
-                    isScanning = true;
-                    btn.innerHTML = '<i class="fas fa-video text-lg"></i>';
-                })
-                .catch(err => {
-                    showToast("Camera access denied or failed.", "error");
-                    container.classList.add('hidden');
-                    btn.innerHTML = '<i class="fas fa-camera text-lg"></i>';
-                    btn.classList.add('bg-blue-600');
-                    btn.classList.remove('bg-red-500');
-                });
+                html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, onScanSuccess)
+                .then(() => { isScanning = true; btn.innerHTML = '<i class="fas fa-video text-xl"></i>'; })
+                .catch(err => { showToast("Camera failed.", "error"); container.classList.add('hidden'); toggleScanner(); });
             }
         };
 
         function onScanSuccess(decodedText) {
-            // Prevent rapid double scanning of the same barcode
             if (decodedText === lastScannedCode) return;
-            
             lastScannedCode = decodedText;
             clearTimeout(scanDebounceTimer);
-            scanDebounceTimer = setTimeout(() => { lastScannedCode = ''; }, 2000); // Reset after 2 seconds
-
-            beepSound.currentTime = 0;
-            beepSound.play().catch(e => console.log('Audio play prevented by browser'));
+            scanDebounceTimer = setTimeout(() => { lastScannedCode = ''; }, 2000);
             
+            beepSound.currentTime = 0; beepSound.play().catch(e=>{});
             processItem(decodedText);
         }
 
@@ -235,193 +316,236 @@
         window.manualAdd = () => {
             const input = document.getElementById('manual-code');
             const code = input.value.trim();
-            if (code) {
-                processItem(code);
-                input.value = '';
-                input.focus();
-            }
+            if (code) { processItem(code); input.value = ''; input.focus(); }
         };
+        document.getElementById('manual-code').addEventListener('keypress', (e) => { if (e.key === 'Enter') window.manualAdd(); });
 
-        document.getElementById('manual-code').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') window.manualAdd();
-        });
-
-        // CORE LOGIC: Add to Cart
+        // ADD TO CART
         function processItem(code) {
             const item = inventory[code];
-            
-            if (!item) {
-                showToast(`Code ${code} not found!`, 'error');
-                return;
-            }
+            if (!item) return showToast(`Code ${code} not found!`, 'error');
 
             const currentStock = parseInt(item.quantity) || 0;
             const price = parseFloat(item.sellingPrice) || 0;
 
-            if (currentStock <= 0) {
-                showToast(`${item.itemName} is OUT OF STOCK!`, 'error');
-                return;
-            }
+            if (currentStock <= 0) return showToast(`Out of Stock!`, 'error');
 
             if (cart[code]) {
-                if (cart[code].cartQty >= currentStock) {
-                    showToast(`Max stock reached for ${item.itemName}`, 'error');
-                    return;
-                }
+                if (cart[code].cartQty >= currentStock) return showToast(`Max stock reached!`, 'error');
                 cart[code].cartQty += 1;
             } else {
                 cart[code] = { ...item, cartQty: 1, price: price };
             }
-            
-            showToast(`Added ${item.itemName}`);
+            showToast(`${item.itemName} added`);
             renderCart();
         }
 
-        // CART UI CONTROLS
+        // CART UI
         window.changeQty = (code, delta) => {
+            vibe();
             if (!cart[code]) return;
-            
             const newQty = cart[code].cartQty + delta;
             const maxStock = parseInt(cart[code].quantity) || 0;
 
-            if (newQty <= 0) {
-                delete cart[code];
-            } else if (newQty > maxStock) {
-                showToast(`Only ${maxStock} in stock!`, 'error');
-                return;
-            } else {
-                cart[code].cartQty = newQty;
-            }
+            if (newQty <= 0) delete cart[code];
+            else if (newQty > maxStock) return showToast(`Only ${maxStock} left!`, 'error');
+            else cart[code].cartQty = newQty;
             renderCart();
         };
 
-        window.removeItem = (code) => {
-            delete cart[code];
-            renderCart();
-        };
+        window.removeItem = (code) => { vibe(); delete cart[code]; renderCart(); };
 
         function renderCart() {
             const itemsContainer = document.getElementById('cart-items');
             const emptyState = document.getElementById('empty-cart');
-            const checkoutBtn = document.getElementById('checkout-btn');
+            const triggerBtn = document.getElementById('checkout-trigger-btn');
             
             const cartKeys = Object.keys(cart);
-            let total = 0;
+            subtotal = 0;
 
             if (cartKeys.length === 0) {
-                emptyState.classList.remove('hidden');
-                itemsContainer.classList.add('hidden');
-                checkoutBtn.disabled = true;
-                document.getElementById('cart-total').innerText = "රු 0.00";
+                emptyState.classList.remove('hidden'); itemsContainer.classList.add('hidden');
+                triggerBtn.disabled = true; document.getElementById('cart-total-btn').innerText = "රු 0.00";
                 return;
             }
 
-            emptyState.classList.add('hidden');
-            itemsContainer.classList.remove('hidden');
-            checkoutBtn.disabled = false;
-            itemsContainer.innerHTML = '';
+            emptyState.classList.add('hidden'); itemsContainer.classList.remove('hidden');
+            triggerBtn.disabled = false; itemsContainer.innerHTML = '';
 
             cartKeys.forEach(code => {
                 const item = cart[code];
                 const itemTotal = item.cartQty * item.price;
-                total += itemTotal;
+                subtotal += itemTotal;
 
                 itemsContainer.innerHTML += `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between gap-3 animate-fade-in">
-                        <div class="flex-1 min-w-0">
-                            <h4 class="font-bold text-slate-800 text-sm truncate">${item.itemName}</h4>
-                            <p class="text-xs text-slate-400 font-mono mt-0.5">${item.itemCode} &bull; ${item.packSize || '1'}</p>
-                            <p class="font-bold text-emerald-600 text-sm mt-1">රු ${item.price.toFixed(2)}</p>
-                        </div>
-                        
-                        <div class="flex items-center gap-3">
-                            <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
-                                <button onclick="changeQty('${code}', -1)" class="w-8 h-8 rounded-md bg-white text-slate-600 hover:text-red-500 shadow-sm flex items-center justify-center"><i class="fas fa-minus text-xs"></i></button>
-                                <span class="font-black text-slate-800 w-8 text-center text-sm">${item.cartQty}</span>
-                                <button onclick="changeQty('${code}', 1)" class="w-8 h-8 rounded-md bg-white text-slate-600 hover:text-emerald-500 shadow-sm flex items-center justify-center"><i class="fas fa-plus text-xs"></i></button>
+                    <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col gap-3 animate-fade-in">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0 pr-2">
+                                <h4 class="font-bold text-slate-800 dark:text-white text-sm leading-tight">${item.itemName}</h4>
+                                <p class="text-[11px] text-slate-400 font-mono mt-1">${item.itemCode} &bull; ${item.packSize || '1'}</p>
                             </div>
-                            <button onclick="removeItem('${code}')" class="text-slate-300 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+                            <button onclick="removeItem('${code}')" class="text-slate-300 hover:text-red-500 bg-slate-50 dark:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center shrink-0"><i class="fas fa-times"></i></button>
                         </div>
-                    </div>
-                `;
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="font-black text-blue-600 dark:text-blue-400">රු ${itemTotal.toFixed(2)} <span class="text-xs text-slate-400 font-normal">(@${item.price})</span></p>
+                            <div class="flex items-center bg-slate-50 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
+                                <button onclick="changeQty('${code}', -1)" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm flex items-center justify-center active:scale-90"><i class="fas fa-minus text-xs"></i></button>
+                                <span class="font-black text-slate-800 dark:text-white w-10 text-center text-sm">${item.cartQty}</span>
+                                <button onclick="changeQty('${code}', 1)" class="w-8 h-8 rounded-lg bg-blue-600 text-white shadow-sm flex items-center justify-center active:scale-90"><i class="fas fa-plus text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
             });
-
-            document.getElementById('cart-total').innerText = `රු ${total.toFixed(2)}`;
+            document.getElementById('cart-total-btn').innerText = `රු ${subtotal.toFixed(2)}`;
         }
 
-        // CHECKOUT & PRINT LOGIC
+        // CHECKOUT BOTTOM SHEET LOGIC
+        window.openCheckout = () => {
+            vibe();
+            document.getElementById('checkout-backdrop').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('checkout-backdrop').classList.remove('opacity-0');
+                document.getElementById('checkout-sheet').classList.add('active');
+            }, 10);
+            
+            document.getElementById('sheet-subtotal').innerText = `රු ${subtotal.toFixed(2)}`;
+            document.getElementById('bill-discount').value = 0;
+            document.getElementById('tender-amount').value = '';
+            setPayment('Cash'); // Reset to cash
+            calculateFinal();
+        };
+
+        window.closeCheckout = () => {
+            document.getElementById('checkout-backdrop').classList.add('opacity-0');
+            document.getElementById('checkout-sheet').classList.remove('active');
+            setTimeout(() => document.getElementById('checkout-backdrop').classList.add('hidden'), 300);
+        };
+
+        window.setPayment = (method) => {
+            vibe();
+            currentPaymentMethod = method;
+            const cashBtn = document.getElementById('pay-cash');
+            const cardBtn = document.getElementById('pay-card');
+            const tenderSec = document.getElementById('cash-tender-section');
+            
+            const activeClass = "py-3 rounded-xl font-bold border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center gap-2";
+            const inactiveClass = "py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2";
+
+            if(method === 'Cash') {
+                cashBtn.className = activeClass; cardBtn.className = inactiveClass;
+                tenderSec.classList.remove('hidden');
+            } else {
+                cardBtn.className = activeClass; cashBtn.className = inactiveClass;
+                tenderSec.classList.add('hidden');
+            }
+            calculateFinal();
+        };
+
+        window.setExactCash = () => {
+            const final = parseFloat(document.getElementById('sheet-final-total').getAttribute('data-val') || subtotal);
+            document.getElementById('tender-amount').value = final;
+            calculateFinal();
+        };
+
+        window.calculateFinal = () => {
+            const discount = parseFloat(document.getElementById('bill-discount').value) || 0;
+            const finalTotal = Math.max(0, subtotal - discount);
+            document.getElementById('sheet-final-total').innerText = `රු ${finalTotal.toFixed(2)}`;
+            document.getElementById('sheet-final-total').setAttribute('data-val', finalTotal);
+
+            if(currentPaymentMethod === 'Cash') {
+                const tendered = parseFloat(document.getElementById('tender-amount').value) || 0;
+                const change = Math.max(0, tendered - finalTotal);
+                document.getElementById('change-due').innerText = `රු ${change.toFixed(2)}`;
+            }
+        };
+
+        // FINAL COMPLETE & PRINT
         window.completeBill = async () => {
-            const btn = document.getElementById('checkout-btn');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-            btn.disabled = true;
+            vibe([50, 50, 100]);
+            const btn = document.getElementById('final-checkout-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; btn.disabled = true;
+
+            const discount = parseFloat(document.getElementById('bill-discount').value) || 0;
+            const finalTotal = Math.max(0, subtotal - discount);
+            let tendered = 0, change = 0;
+
+            if (currentPaymentMethod === 'Cash') {
+                tendered = parseFloat(document.getElementById('tender-amount').value) || 0;
+                if(tendered < finalTotal) {
+                    showToast('Insufficient Tendered Amount', 'error');
+                    btn.innerHTML = '<i class="fas fa-print"></i> Process & Print Receipt'; btn.disabled = false;
+                    return;
+                }
+                change = tendered - finalTotal;
+            }
 
             try {
                 const updates = {};
-                const cartItems = Object.values(cart);
-                let grandTotal = 0;
-                
-                // 1. Prepare Firebase Updates & Receipt HTML
-                const tbody = document.getElementById('receipt-body');
-                tbody.innerHTML = '';
+                const tbody = document.getElementById('r-body'); tbody.innerHTML = '';
 
-                cartItems.forEach(item => {
-                    // Calculate new stock
-                    const newStock = Math.max(0, parseInt(item.quantity) - item.cartQty);
-                    updates[`items/${item.id}/quantity`] = newStock;
-                    
-                    // Add to receipt
+                // Build Updates & Print UI
+                Object.values(cart).forEach(item => {
+                    updates[`items/${item.id}/quantity`] = Math.max(0, parseInt(item.quantity) - item.cartQty);
                     const lineTotal = item.cartQty * item.price;
-                    grandTotal += lineTotal;
-                    
                     tbody.innerHTML += `
-                        <tr>
-                            <td colspan="3" style="font-weight:bold; font-size:11px;">${item.itemName}</td>
-                        </tr>
+                        <tr><td colspan="3" style="font-weight:bold; font-size:11px;">${item.itemName}</td></tr>
                         <tr>
                             <td style="font-size:11px;">${item.itemCode}</td>
                             <td class="right" style="font-size:11px;">${item.cartQty} x ${item.price.toFixed(2)}</td>
                             <td class="right" style="font-size:11px; font-weight:bold;">${lineTotal.toFixed(2)}</td>
-                        </tr>
-                    `;
+                        </tr>`;
                 });
 
-                // 2. Commit to Firebase
-                await update(ref(db), updates);
-                
-                // 3. Prepare Print Data
-                document.getElementById('receipt-date').innerText = new Date().toLocaleString();
-                document.getElementById('receipt-grand-total').innerText = `LKR ${grandTotal.toFixed(2)}`;
-
-                // 4. Trigger Print
-                window.print();
-
-                // 5. Reset App
-                cart = {};
-                renderCart();
-                showToast('Transaction Complete!', 'success');
-
-                // If scanner was running, restart it to be ready for next customer
-                if (isScanning && document.visibilityState === 'visible') {
-                    // keep it running
+                // Customer Data
+                const cName = document.getElementById('cust-name').value.trim();
+                const cPhone = document.getElementById('cust-phone').value.trim();
+                if(cName || cPhone) {
+                    document.getElementById('r-customer-info').style.display = 'block';
+                    document.getElementById('r-cust-name').innerText = cName ? `Cust: ${cName}` : '';
+                    document.getElementById('r-cust-phone').innerText = cPhone ? ` | Ph: ${cPhone}` : '';
                 }
 
-            } catch (error) {
-                console.error(error);
-                showToast('Error saving transaction', 'error');
-            } finally {
-                btn.innerHTML = '<i class="fas fa-receipt"></i> Complete & Print Bill';
-                btn.disabled = false;
-            }
+                // Financial Print Data
+                document.getElementById('r-date').innerText = new Date().toLocaleString();
+                document.getElementById('r-subtotal').innerText = subtotal.toFixed(2);
+                
+                if(discount > 0) {
+                    document.getElementById('r-discount-row').style.display = 'flex';
+                    document.getElementById('r-discount').innerText = `-${discount.toFixed(2)}`;
+                }
+                
+                document.getElementById('r-grand-total').innerText = `LKR ${finalTotal.toFixed(2)}`;
+                document.getElementById('r-method').innerText = currentPaymentMethod;
+
+                if (currentPaymentMethod === 'Cash') {
+                    document.getElementById('r-tendered-row').style.display = 'flex';
+                    document.getElementById('r-tendered').innerText = tendered.toFixed(2);
+                    document.getElementById('r-change-row').style.display = 'flex';
+                    document.getElementById('r-change').innerText = change.toFixed(2);
+                }
+
+                // Push to DB
+                await update(ref(db), updates);
+                
+                // Print
+                window.print();
+
+                // Reset App
+                cart = {}; renderCart(); closeCheckout();
+                showToast('Transaction Complete!', 'success');
+
+                // Clear Inputs
+                document.getElementById('cust-name').value = '';
+                document.getElementById('cust-phone').value = '';
+
+            } catch (error) { showToast('Network Error', 'error'); } 
+            finally { btn.innerHTML = '<i class="fas fa-print"></i> Process & Print Receipt'; btn.disabled = false; }
         };
 
-        // Extra CSS Animations
+        // CSS Animations setup
         const style = document.createElement('style');
-        style.textContent = `
-            @keyframes bounce-in { 0% { transform: scale(0.9); opacity: 0; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-            .animate-bounce-in { animation: bounce-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-            @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-            .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
-        `;
+        style.textContent = `@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }`;
         document.head.appendChild(style);
 
     </script>
