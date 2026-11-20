@@ -18,6 +18,22 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
 
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
+        body { font-family: 'Manrope', sans-serif; background: radial-gradient(circle at top, #dbeafe 0, #f8fafc 36%, #eef2ff 100%); }
+        body.dark { background: radial-gradient(circle at top, #1e293b 0, #020617 70%) !important; }
+        #app-layout { max-width: 520px; border-left: 1px solid rgba(148,163,184,.12); border-right: 1px solid rgba(148,163,184,.12); }
+        #app-layout header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important; border-radius: 0 0 24px 24px; }
+        #manual-code { font-family: 'JetBrains Mono', monospace; }
+        #cart-container::-webkit-scrollbar { display: none; }
+        #cart-items > div { box-shadow: 0 8px 24px rgba(15,23,42,.07); transition: transform .18s ease, box-shadow .18s ease; }
+        #cart-items > div:active { transform: scale(.985); }
+        #checkout-sheet, #hold-sheet { max-width: 520px; right: 0; left: 0; margin: auto; border-radius: 28px 28px 0 0; }
+        #checkout-sheet input, #checkout-sheet select { transition: border-color .2s ease, box-shadow .2s ease; }
+        #checkout-sheet input:focus, #checkout-sheet select:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+        .bottom-sheet { box-shadow: 0 -24px 60px rgba(15,23,42,.18); }
+        .enterprise-action { min-height: 48px; }
+        #history-sheet, #customers-sheet, #reports-sheet { max-width: 520px; right: 0; left: 0; margin: auto; border-radius: 28px 28px 0 0; }
+        .metric-card { background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); }
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
@@ -31,7 +47,7 @@
         /* Thermal Print Layout */
         @media print {
             body { background: white !important; font-size: 12px; color: #000 !important; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; display: flex; justify-content: center; }
-            #app-layout, #toast-container, #checkout-sheet, #hold-sheet, .sheet-backdrop { display: none !important; }
+            #app-layout, #toast-container, #checkout-sheet, #hold-sheet, #history-sheet, #customers-sheet, #reports-sheet, .sheet-backdrop { display: none !important; }
             #print-receipt { display: block !important; width: 100%; max-width: 80mm; padding: 5mm; margin: 0 auto; box-sizing: border-box; }
             
             .r-header { text-align: center; margin-bottom: 12px; }
@@ -60,12 +76,15 @@
 
     <div id="app-layout" class="flex flex-col h-full w-full max-w-lg mx-auto bg-white dark:bg-slate-900 shadow-2xl relative">
         
-        <header class="bg-slate-900 dark:bg-black text-white p-4 flex justify-between items-center z-10 shrink-0 rounded-b-2xl shadow-md">
+        <header class="bg-slate-900 dark:bg-black text-white px-5 py-4 flex justify-between items-center z-10 shrink-0 rounded-b-2xl shadow-md">
             <div>
-                <h1 class="text-xl font-black tracking-wider text-blue-400">PrasaTek <span class="text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full ml-1 align-top shadow-lg">ENT</span></h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Enterprise POS</p>
+                <h1 class="text-xl font-black tracking-wide text-white">Prasa<span class="text-blue-400">Tek</span> <span class="text-[9px] bg-blue-500/20 border border-blue-400/20 text-blue-300 px-2 py-1 rounded-full ml-1 align-middle">POS 6</span></h1>
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-[.22em] mt-1">Point of Sale</p>
             </div>
             <div class="flex gap-2">
+                <button onclick="openReports()" class="bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 p-2 rounded-xl transition-colors w-10 h-10 flex items-center justify-center" title="Sales reports">
+                    <i class="fas fa-chart-line"></i>
+                </button>
                 <button onclick="toggleAudio()" id="audio-btn" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl transition-colors w-10 h-10 flex items-center justify-center text-slate-300">
                     <i class="fas fa-volume-up"></i>
                 </button>
@@ -79,6 +98,13 @@
             </div>
         </header>
 
+        <div class="px-4 pt-3 flex gap-2 shrink-0">
+            <a href="index.html" class="enterprise-action flex-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 shadow-sm flex items-center justify-center gap-2" aria-label="Return to inventory management"><i class="fas fa-boxes-stacked text-amber-500"></i> Inventory</a>
+            <button onclick="openSalesHistory()" class="enterprise-action flex-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 shadow-sm flex items-center justify-center gap-2"><i class="fas fa-receipt text-blue-500"></i> Sales</button>
+            <button onclick="openCustomers()" class="enterprise-action flex-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 shadow-sm flex items-center justify-center gap-2"><i class="fas fa-users text-violet-500"></i> Customers</button>
+            <button onclick="openReports()" class="enterprise-action flex-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 shadow-sm flex items-center justify-center gap-2"><i class="fas fa-chart-pie text-emerald-500"></i> Reports</button>
+        </div>
+
         <div class="p-4 bg-transparent shrink-0 z-10 relative -mt-2">
             <div id="scanner-container" class="mb-3 hidden bg-black rounded-2xl shadow-2xl relative overflow-hidden border-4 border-slate-800">
                 <div id="reader"></div>
@@ -87,7 +113,7 @@
                 </button>
             </div>
 
-            <div class="flex gap-2 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+            <div class="flex gap-2 bg-white/95 dark:bg-slate-800 p-2 rounded-2xl shadow-[0_12px_35px_rgba(15,23,42,.10)] border border-slate-100 dark:border-slate-700">
                 <button onclick="toggleScanner()" id="start-scan-btn" class="bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center w-14 h-14 shrink-0 transition-transform active:scale-90 shadow-md">
                     <i class="fas fa-camera text-xl"></i>
                 </button>
@@ -112,7 +138,7 @@
             <div id="cart-items" class="space-y-3 hidden mt-2"></div>
         </div>
 
-        <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 z-20 pb-6 pt-12 flex gap-2">
+        <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 z-20 pb-6 pt-12 flex gap-2">
             <button onclick="holdCurrentCart()" id="hold-trigger-btn" disabled class="bg-amber-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white w-16 rounded-2xl font-black text-lg shadow-lg disabled:shadow-none transition-all active:scale-95 flex items-center justify-center">
                 <i class="fas fa-hand-paper"></i>
             </button>
@@ -134,6 +160,44 @@
             </div>
     </div>
 
+    <div id="history-sheet" class="fixed bottom-0 w-full bg-white dark:bg-slate-900 z-50 bottom-sheet flex flex-col max-h-[88vh]">
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div><h2 class="text-xl font-black dark:text-white">Sales history</h2><p class="text-xs text-slate-500 mt-1">Search and reprint completed invoices</p></div>
+            <button onclick="closeAllSheets()" class="w-9 h-9 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex gap-2 shrink-0">
+            <input id="sales-search" type="search" oninput="renderSalesHistory()" placeholder="Invoice, customer or phone..." class="flex-1 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm dark:text-white outline-none">
+            <select id="sales-period" onchange="renderSalesHistory()" class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-bold dark:text-white"><option value="all">All time</option><option value="today">Today</option><option value="week">7 days</option></select>
+        </div>
+        <div id="sales-list" class="p-4 overflow-y-auto flex-1 space-y-3"></div>
+    </div>
+
+    <div id="customers-sheet" class="fixed bottom-0 w-full bg-white dark:bg-slate-900 z-50 bottom-sheet flex flex-col max-h-[82vh]">
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div><h2 class="text-xl font-black dark:text-white">Customers</h2><p class="text-xs text-slate-500 mt-1">Saved from completed sales</p></div>
+            <button onclick="closeAllSheets()" class="w-9 h-9 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-4 shrink-0"><input id="customer-search" type="search" oninput="renderCustomers()" placeholder="Search name or phone..." class="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm dark:text-white outline-none"></div>
+        <div id="customer-list" class="px-4 pb-6 overflow-y-auto flex-1 space-y-2"></div>
+    </div>
+
+    <div id="reports-sheet" class="fixed bottom-0 w-full bg-white dark:bg-slate-900 z-50 bottom-sheet flex flex-col max-h-[88vh]">
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div><h2 class="text-xl font-black dark:text-white">Sales overview</h2><p class="text-xs text-slate-500 mt-1">Live summary from recorded invoices</p></div>
+            <button onclick="closeAllSheets()" class="w-9 h-9 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-4 overflow-y-auto flex-1">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-slate-900 p-4 text-white"><p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Today's sales</p><p id="report-today-total" class="text-xl font-black mt-2">රු 0.00</p></div>
+                <div class="rounded-2xl bg-blue-600 p-4 text-white"><p class="text-[10px] uppercase tracking-wider text-blue-100 font-bold">Today's invoices</p><p id="report-today-count" class="text-xl font-black mt-2">0</p></div>
+                <div class="rounded-2xl bg-emerald-600 p-4 text-white"><p class="text-[10px] uppercase tracking-wider text-emerald-100 font-bold">Cash received</p><p id="report-cash-total" class="text-lg font-black mt-2">රු 0.00</p></div>
+                <div class="rounded-2xl bg-violet-600 p-4 text-white"><p class="text-[10px] uppercase tracking-wider text-violet-100 font-bold">Other payments</p><p id="report-other-total" class="text-lg font-black mt-2">රු 0.00</p></div>
+            </div>
+            <div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 flex justify-between items-center"><span class="text-sm font-bold text-slate-500">Average invoice (today)</span><b id="report-average" class="dark:text-white">රු 0.00</b></div>
+            <button onclick="exportSales()" class="mt-4 w-full py-3 rounded-xl bg-slate-900 dark:bg-blue-600 text-white font-extrabold flex items-center justify-center gap-2"><i class="fas fa-download"></i> Export sales CSV</button>
+        </div>
+    </div>
+
     <div id="checkout-sheet" class="fixed bottom-0 left-0 w-full max-w-lg mx-auto bg-white dark:bg-slate-900 z-50 rounded-t-3xl shadow-2xl bottom-sheet flex flex-col max-h-[90vh]">
         <div class="p-4 flex justify-between items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
             <h2 class="text-xl font-black dark:text-white">Complete Sale</h2>
@@ -147,6 +211,11 @@
                     <input type="text" id="cust-name" placeholder="Name" class="w-1/2 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
                     <input type="tel" id="cust-phone" placeholder="Phone" class="w-1/2 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
                 </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <input type="email" id="cust-email" placeholder="Email (optional)" class="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white">
+                    <input type="text" id="order-reference" placeholder="Order / PO reference" class="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white">
+                </div>
+                <textarea id="invoice-note" rows="2" placeholder="Invoice note (optional)" class="mt-2 w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white resize-none"></textarea>
             </div>
 
             <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl space-y-3">
@@ -166,10 +235,14 @@
             </div>
 
             <div>
-                <div class="grid grid-cols-2 gap-3">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment method</label>
+                <div class="grid grid-cols-2 gap-2">
                     <button id="pay-cash" onclick="setPayment('Cash')" class="py-3 rounded-xl font-bold border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-money-bill-wave"></i> Cash</button>
-                    <button id="pay-card" onclick="setPayment('Card')" class="py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> Card</button>
+                    <button id="pay-card" onclick="setPayment('Card')" class="py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> Card</button>
+                    <button id="pay-bank" onclick="setPayment('Bank transfer')" class="py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-building-columns"></i> Bank</button>
+                    <button id="pay-mobile" onclick="setPayment('Mobile payment')" class="py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-mobile-screen-button"></i> Mobile</button>
                 </div>
+                <input id="payment-reference" type="text" placeholder="Transaction / payment reference (optional)" class="hidden mt-2 w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white">
             </div>
 
             <div id="cash-tender-section" class="animate-fade-in">
@@ -182,6 +255,10 @@
                     <span class="font-bold text-emerald-700 dark:text-emerald-400">Change Due:</span><span id="change-due" class="font-black text-2xl text-emerald-600 dark:text-emerald-400">රු 0.00</span>
                 </div>
             </div>
+            <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-600 dark:text-slate-300">
+                <input id="print-after-sale" type="checkbox" checked class="w-4 h-4 accent-blue-600">
+                Print paper receipt after sale
+            </label>
         </div>
 
         <div class="p-4 border-t border-slate-100 dark:border-slate-800 shrink-0 flex gap-2">
@@ -203,10 +280,10 @@
         </div>
         <div class="r-meta">
             <div style="text-align: left;"><span id="r-date"></span><br><span id="r-time"></span></div>
-            <div style="text-align: right;">Inv No: <b id="r-inv-no"></b><br>Cashier: Admin</div>
+            <div style="text-align: right;">Inv No: <b id="r-inv-no"></b><br>Cashier: Admin<br><span id="r-order-ref"></span></div>
         </div>
         <div id="r-customer-info" style="margin-top: 5px; margin-bottom: 5px; font-size: 11px; display: none; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-            <b>Customer:</b> <span id="r-cust-name"></span> <span id="r-cust-phone"></span>
+            <b>Customer:</b> <span id="r-cust-name"></span> <span id="r-cust-phone"></span><br><span id="r-cust-email"></span>
         </div>
         <table class="r-table">
             <thead><tr><th style="width: 50%;">Item</th><th class="right" style="width: 20%;">Qty</th><th class="right" style="width: 30%;">Amount</th></tr></thead>
@@ -218,10 +295,12 @@
             <div class="r-row" id="r-discount-row" style="display: none;"><span>Discount:</span> <span id="r-discount"></span></div>
             <div class="r-row r-total"><span>NET TOTAL:</span> <span id="r-grand-total"></span></div>
         </div>
+        <div id="r-invoice-note" style="display:none; margin-top: 6px; font-size: 10px;"></div>
         <div style="margin-top: 8px; border-top: 1px dashed #000; padding-top: 8px;">
             <div class="r-row"><span>Payment Mode:</span> <b id="r-method"></b></div>
             <div class="r-row" id="r-tendered-row" style="display: none;"><span>Cash Tendered:</span> <span id="r-tendered"></span></div>
             <div class="r-row" id="r-change-row" style="display: none;"><span>Change:</span> <b id="r-change"></b></div>
+            <div class="r-row" id="r-payment-reference-row" style="display: none;"><span>Payment Ref:</span> <span id="r-payment-reference"></span></div>
         </div>
         <div class="r-barcode-container"><svg id="r-barcode"></svg></div>
         <div class="r-footer"><p style="font-weight: bold; font-size: 12px; margin-bottom: 4px;">*** THANK YOU - COME AGAIN ***</p><p>Powered by PrasaTek POS V6</p></div>
@@ -231,7 +310,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBdm-R6d3nntIpXp3SnPs940WUkGC4vMAk",
@@ -244,6 +323,8 @@
         const db = getDatabase(app);
 
         let inventory = {}; 
+        let sales = [];
+        let customers = [];
         let cart = {}; 
         let heldCarts = []; // Array to store suspended carts
         let html5QrcodeScanner = null;
@@ -271,6 +352,19 @@
             const data = snapshot.val(); inventory = {};
             if (data) Object.entries(data).forEach(([id, item]) => { if (item.itemCode) inventory[item.itemCode] = { id, ...item }; });
             renderCart(); // Re-render to update stock warnings if changed remotely
+        });
+
+        onValue(ref(db, 'sales'), (snapshot) => {
+            const data = snapshot.val() || {};
+            sales = Object.entries(data).map(([id, sale]) => ({ id, ...sale })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            renderSalesHistory();
+            renderReports();
+        });
+
+        onValue(ref(db, 'customers'), (snapshot) => {
+            const data = snapshot.val() || {};
+            customers = Object.entries(data).map(([id, customer]) => ({ id, ...customer })).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+            renderCustomers();
         });
 
         function showToast(msg, type = 'success') {
@@ -456,16 +550,226 @@
             document.getElementById('checkout-backdrop').classList.add('opacity-0');
             document.getElementById('checkout-sheet').classList.remove('active');
             document.getElementById('hold-sheet').classList.remove('active');
+            document.getElementById('history-sheet').classList.remove('active');
+            document.getElementById('customers-sheet').classList.remove('active');
+            document.getElementById('reports-sheet').classList.remove('active');
             setTimeout(() => document.getElementById('checkout-backdrop').classList.add('hidden'), 300);
         };
 
+        function openSheet(id) {
+            document.getElementById('checkout-backdrop').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('checkout-backdrop').classList.remove('opacity-0');
+                document.getElementById(id).classList.add('active');
+            }, 10);
+        }
+
+        window.openSalesHistory = () => { renderSalesHistory(); openSheet('history-sheet'); };
+        window.openCustomers = () => { renderCustomers(); openSheet('customers-sheet'); };
+        window.openReports = () => { renderReports(); openSheet('reports-sheet'); };
+
+        function renderSalesHistory() {
+            const container = document.getElementById('sales-list');
+            if (!container) return;
+            const search = (document.getElementById('sales-search')?.value || '').trim().toLowerCase();
+            const period = document.getElementById('sales-period')?.value || 'all';
+            const now = new Date();
+            const filtered = sales.filter(sale => {
+                const saleDate = new Date(sale.createdAt || sale.date || 0);
+                const age = now - saleDate;
+                const matchesPeriod = period === 'today'
+                    ? saleDate.toDateString() === now.toDateString()
+                    : period === 'week' ? age >= 0 && age <= 7 * 24 * 60 * 60 * 1000 : true;
+                const haystack = `${sale.invoiceNo || ''} ${sale.customer?.name || ''} ${sale.customer?.phone || ''}`.toLowerCase();
+                return matchesPeriod && (!search || haystack.includes(search));
+            });
+            container.replaceChildren();
+            if (!filtered.length) {
+                const empty = document.createElement('p');
+                empty.className = 'text-center text-slate-400 py-10 text-sm';
+                empty.textContent = 'No matching sales found.';
+                container.appendChild(empty);
+                return;
+            }
+            filtered.slice(0, 100).forEach(sale => {
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70';
+                const top = document.createElement('div');
+                top.className = 'flex items-start justify-between gap-3';
+                const details = document.createElement('div');
+                const invoice = document.createElement('p');
+                invoice.className = 'font-black text-sm dark:text-white';
+                invoice.textContent = sale.invoiceNo || 'Invoice';
+                const customer = document.createElement('p');
+                customer.className = 'text-xs text-slate-500 mt-1';
+                customer.textContent = sale.customer?.name || 'Walk-in customer';
+                const date = document.createElement('p');
+                date.className = 'text-[10px] text-slate-400 mt-1';
+                date.textContent = new Date(sale.createdAt || sale.date || 0).toLocaleString();
+                details.append(invoice, customer, date);
+                const amount = document.createElement('strong');
+                amount.className = 'text-sm text-blue-600 dark:text-blue-400 whitespace-nowrap';
+                amount.textContent = `රු ${Number(sale.total || 0).toFixed(2)}`;
+                top.append(details, amount);
+                const footer = document.createElement('div');
+                footer.className = 'mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between';
+                const method = document.createElement('span');
+                method.className = 'text-[10px] uppercase tracking-wider font-extrabold text-slate-500';
+                method.textContent = `${sale.paymentMethod || 'Unknown'} · ${(sale.items || []).length} items`;
+                const print = document.createElement('button');
+                print.className = 'text-xs font-extrabold text-blue-600 dark:text-blue-400';
+                print.innerHTML = '<i class="fas fa-print mr-1"></i> Reprint';
+                print.addEventListener('click', () => window.reprintSale(sale.id));
+                footer.append(method, print);
+                card.append(top, footer);
+                container.appendChild(card);
+            });
+        }
+
+        function renderCustomers() {
+            const container = document.getElementById('customer-list');
+            if (!container) return;
+            const search = (document.getElementById('customer-search')?.value || '').trim().toLowerCase();
+            const filtered = customers.filter(customer => `${customer.name || ''} ${customer.phone || ''} ${customer.email || ''}`.toLowerCase().includes(search));
+            container.replaceChildren();
+            if (!filtered.length) {
+                const empty = document.createElement('p');
+                empty.className = 'text-center text-slate-400 py-10 text-sm';
+                empty.textContent = customers.length ? 'No matching customers.' : 'Customer profiles will appear after a sale.';
+                container.appendChild(empty);
+                return;
+            }
+            filtered.forEach(customer => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700';
+                const name = document.createElement('span');
+                name.className = 'block font-extrabold text-sm dark:text-white';
+                name.textContent = customer.name || 'Customer';
+                const detail = document.createElement('span');
+                detail.className = 'block text-xs text-slate-500 mt-1';
+                detail.textContent = [customer.phone, customer.email].filter(Boolean).join(' · ');
+                button.append(name, detail);
+                button.addEventListener('click', () => {
+                    document.getElementById('cust-name').value = customer.name || '';
+                    document.getElementById('cust-phone').value = customer.phone || '';
+                    document.getElementById('cust-email').value = customer.email || '';
+                    closeAllSheets();
+                    window.openCheckout();
+                    showToast('Customer added to invoice');
+                });
+                container.appendChild(button);
+            });
+        }
+
+        function renderReports() {
+            if (!document.getElementById('report-today-total')) return;
+            const today = new Date().toDateString();
+            const todaysSales = sales.filter(sale => new Date(sale.createdAt || sale.date || 0).toDateString() === today);
+            const total = todaysSales.reduce((sum, sale) => sum + Number(sale.total || 0), 0);
+            const cash = todaysSales.filter(sale => sale.paymentMethod === 'Cash').reduce((sum, sale) => sum + Number(sale.total || 0), 0);
+            const other = total - cash;
+            document.getElementById('report-today-total').textContent = `රු ${total.toFixed(2)}`;
+            document.getElementById('report-today-count').textContent = String(todaysSales.length);
+            document.getElementById('report-cash-total').textContent = `රු ${cash.toFixed(2)}`;
+            document.getElementById('report-other-total').textContent = `රු ${other.toFixed(2)}`;
+            document.getElementById('report-average').textContent = `රු ${(todaysSales.length ? total / todaysSales.length : 0).toFixed(2)}`;
+        }
+
+        window.exportSales = () => {
+            const headers = ['Invoice', 'Date', 'Customer', 'Phone', 'Items', 'Subtotal', 'Tax', 'Discount', 'Total', 'Payment'];
+            const rows = sales.map(sale => [
+                sale.invoiceNo, new Date(sale.createdAt || sale.date || 0).toISOString(),
+                sale.customer?.name || '', sale.customer?.phone || '',
+                (sale.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+                sale.subtotal || 0, sale.taxAmount || 0, sale.discountAmount || 0, sale.total || 0, sale.paymentMethod || ''
+            ]);
+            const csv = [headers, ...rows].map(row => row.map(value => {
+                const text = String(value ?? '');
+                const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+                return `"${safeText.replace(/"/g, '""')}"`;
+            }).join(',')).join('\r\n');
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            link.download = `PrasaTek_Sales_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        };
+
+        function fillReceipt(sale) {
+            const tbody = document.getElementById('r-body');
+            tbody.replaceChildren();
+            (sale.items || []).forEach(item => {
+                const row = document.createElement('tr');
+                const name = document.createElement('td');
+                const title = document.createElement('b');
+                title.textContent = item.name || 'Item';
+                const code = document.createElement('span');
+                code.style.cssText = 'font-size:9px;color:#555';
+                code.textContent = item.code || '';
+                name.append(title, document.createElement('br'), code);
+                const quantity = document.createElement('td');
+                quantity.className = 'right';
+                quantity.textContent = String(item.quantity || 0);
+                const amount = document.createElement('td');
+                amount.className = 'right';
+                amount.textContent = Number(item.amount || 0).toFixed(2);
+                row.append(name, quantity, amount);
+                tbody.appendChild(row);
+            });
+            const customer = sale.customer || {};
+            document.getElementById('r-customer-info').style.display = customer.name || customer.phone || customer.email ? 'block' : 'none';
+            document.getElementById('r-cust-name').textContent = customer.name || '';
+            document.getElementById('r-cust-phone').textContent = customer.phone ? ` | Ph: ${customer.phone}` : '';
+            document.getElementById('r-cust-email').textContent = customer.email || '';
+            document.getElementById('r-date').textContent = new Date(sale.createdAt || sale.date).toLocaleDateString();
+            document.getElementById('r-time').textContent = new Date(sale.createdAt || sale.date).toLocaleTimeString();
+            document.getElementById('r-inv-no').textContent = sale.invoiceNo || '';
+            document.getElementById('r-order-ref').textContent = sale.orderReference ? `Ref: ${sale.orderReference}` : '';
+            document.getElementById('r-subtotal').textContent = Number(sale.subtotal || 0).toFixed(2);
+            document.getElementById('r-tax-row').style.display = sale.taxAmount > 0 ? 'flex' : 'none';
+            document.getElementById('r-tax-lbl').textContent = String(sale.taxPercent || 0);
+            document.getElementById('r-tax-amt').textContent = Number(sale.taxAmount || 0).toFixed(2);
+            document.getElementById('r-discount-row').style.display = sale.discountAmount > 0 ? 'flex' : 'none';
+            document.getElementById('r-discount').textContent = `-${Number(sale.discountAmount || 0).toFixed(2)}`;
+            document.getElementById('r-grand-total').textContent = `LKR ${Number(sale.total || 0).toFixed(2)}`;
+            document.getElementById('r-method').textContent = (sale.paymentMethod || '').toUpperCase();
+            document.getElementById('r-tendered-row').style.display = sale.paymentMethod === 'Cash' ? 'flex' : 'none';
+            document.getElementById('r-tendered').textContent = Number(sale.tendered || 0).toFixed(2);
+            document.getElementById('r-change-row').style.display = sale.paymentMethod === 'Cash' ? 'flex' : 'none';
+            document.getElementById('r-change').textContent = Number(sale.change || 0).toFixed(2);
+            document.getElementById('r-payment-reference-row').style.display = sale.paymentReference ? 'flex' : 'none';
+            document.getElementById('r-payment-reference').textContent = sale.paymentReference || '';
+            const note = document.getElementById('r-invoice-note');
+            note.textContent = sale.note ? `Note: ${sale.note}` : '';
+            note.style.display = sale.note ? 'block' : 'none';
+            if (typeof JsBarcode !== 'undefined') JsBarcode('#r-barcode', sale.invoiceNo || '', { format: 'CODE128', width: 1.5, height: 40, displayValue: true, fontSize: 12, margin: 0 });
+        }
+
+        window.reprintSale = (id) => {
+            const sale = sales.find(item => item.id === id);
+            if (!sale) return showToast('Invoice not found', 'error');
+            fillReceipt(sale);
+            closeAllSheets();
+            window.print();
+        };
+
+        document.getElementById('cust-phone').addEventListener('change', (event) => {
+            const phone = event.target.value.replace(/\D/g, '');
+            const match = customers.find(customer => (customer.phone || '').replace(/\D/g, '') === phone);
+            if (!match) return;
+            document.getElementById('cust-name').value = match.name || '';
+            document.getElementById('cust-email').value = match.email || '';
+            showToast('Saved customer details found');
+        });
+
         window.setPayment = (method) => {
             vibe(); currentPaymentMethod = method;
-            const cashBtn = document.getElementById('pay-cash'); const cardBtn = document.getElementById('pay-card'); const tenderSec = document.getElementById('cash-tender-section');
+            const methods = { 'Cash': 'pay-cash', 'Card': 'pay-card', 'Bank transfer': 'pay-bank', 'Mobile payment': 'pay-mobile' };
             const activeClass = "py-3 rounded-xl font-bold border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center gap-2";
             const inactiveClass = "py-3 rounded-xl font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2";
-            if(method === 'Cash') { cashBtn.className = activeClass; cardBtn.className = inactiveClass; tenderSec.classList.remove('hidden'); } 
-            else { cardBtn.className = activeClass; cashBtn.className = inactiveClass; tenderSec.classList.add('hidden'); }
+            Object.entries(methods).forEach(([name, id]) => { document.getElementById(id).className = name === method ? activeClass : inactiveClass; });
+            document.getElementById('cash-tender-section').classList.toggle('hidden', method !== 'Cash');
+            document.getElementById('payment-reference').classList.toggle('hidden', method === 'Cash');
             calculateFinal();
         };
 
@@ -487,12 +791,17 @@
 
         // Advanced Feature: Generate Text Summary for Web Share
         function buildShareText(invNo, dateStr, cName) {
-            let txt = `*PRASATEK MEDICAL*\nInvoice: ${invNo}\nDate: ${dateStr}\n${cName ? `Cust: ${cName}\n` : ''}------------------------\n`;
+            let txt = `*PRASATEK MEDICAL*\nInvoice: ${invNo}\nDate: ${dateStr}\n${cName ? `Cust: ${cName}\n` : ''}`;
+            const orderReference = document.getElementById('order-reference').value.trim();
+            const note = document.getElementById('invoice-note').value.trim();
+            if (orderReference) txt += `Order ref: ${orderReference}\n`;
+            if (note) txt += `Note: ${note}\n`;
+            txt += `------------------------\n`;
             Object.values(cart).forEach(item => { txt += `${item.itemName} (${item.cartQty} x ${item.price}) = ${item.cartQty * item.price}\n`; });
             txt += `------------------------\nSubtotal: LKR ${subtotal.toFixed(2)}\n`;
             if(taxAmount>0) txt+= `Tax: LKR ${taxAmount.toFixed(2)}\n`;
             if(discountAmount>0) txt+= `Discount: LKR -${discountAmount.toFixed(2)}\n`;
-            txt += `*TOTAL: LKR ${finalPayable.toFixed(2)}*\n------------------------\nThank you for shopping with us!`;
+            txt += `Payment: ${currentPaymentMethod}\n*TOTAL: LKR ${finalPayable.toFixed(2)}*\n------------------------\nThank you for shopping with us!`;
             return txt;
         }
 
@@ -509,6 +818,8 @@
 
         window.completeBill = async () => {
             vibe([50, 50, 100]); const btn = document.getElementById('final-checkout-btn');
+            calculateFinal();
+            if (!Object.keys(cart).length) return showToast('Add items before completing the sale', 'error');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...'; btn.disabled = true;
 
             let tendered = 0, change = 0;
@@ -521,39 +832,69 @@
             }
 
             try {
-                const updates = {}; const tbody = document.getElementById('r-body'); tbody.innerHTML = '';
-                const now = new Date(); const invNo = "INV" + now.getTime().toString().slice(-6) + Math.floor(Math.random() * 10);
-
+                const now = new Date();
+                const invNo = `INV${now.getTime()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+                const customer = {
+                    name: document.getElementById('cust-name').value.trim(),
+                    phone: document.getElementById('cust-phone').value.trim(),
+                    email: document.getElementById('cust-email').value.trim()
+                };
+                const sale = {
+                    invoiceNo: invNo,
+                    createdAt: now.getTime(),
+                    date: now.toISOString(),
+                    customer,
+                    orderReference: document.getElementById('order-reference').value.trim(),
+                    note: document.getElementById('invoice-note').value.trim(),
+                    items: Object.values(cart).map(item => ({
+                        code: item.itemCode,
+                        name: item.itemName,
+                        quantity: item.cartQty,
+                        unitPrice: item.price,
+                        amount: item.cartQty * item.price,
+                        itemId: item.id
+                    })),
+                    subtotal,
+                    taxPercent: parseFloat(document.getElementById('bill-tax').value) || 0,
+                    taxAmount,
+                    discountType: document.getElementById('discount-type').value,
+                    discountAmount,
+                    total: finalPayable,
+                    paymentMethod: currentPaymentMethod,
+                    paymentReference: document.getElementById('payment-reference').value.trim(),
+                    tendered,
+                    change
+                };
+                const updates = {};
                 Object.values(cart).forEach(item => {
                     updates[`items/${item.id}/quantity`] = Math.max(0, parseInt(item.quantity) - item.cartQty);
-                    tbody.innerHTML += `<tr><td><b>${item.itemName}</b><br><span style="font-size: 9px; color: #555;">${item.itemCode}</span></td><td class="right">${item.cartQty}</td><td class="right"><b>${(item.cartQty * item.price).toFixed(2)}</b></td></tr>`;
                 });
+                const saleRef = push(ref(db, 'sales'));
+                updates[`sales/${saleRef.key}`] = sale;
+                if (customer.name || customer.phone || customer.email) {
+                    const phoneDigits = customer.phone.replace(/\D/g, '');
+                    const existing = customers.find(entry => phoneDigits && (entry.phone || '').replace(/\D/g, '') === phoneDigits);
+                    const customerKey = existing?.id || (phoneDigits ? `phone-${phoneDigits}` : push(ref(db, 'customers')).key);
+                    updates[`customers/${customerKey}`] = {
+                        ...customer,
+                        createdAt: existing?.createdAt || now.getTime(),
+                        updatedAt: now.getTime()
+                    };
+                }
 
-                const cName = document.getElementById('cust-name').value.trim(); const cPhone = document.getElementById('cust-phone').value.trim();
-                if(cName || cPhone) {
-                    document.getElementById('r-customer-info').style.display = 'block';
-                    document.getElementById('r-cust-name').innerText = cName; document.getElementById('r-cust-phone').innerText = cPhone ? ` | Ph: ${cPhone}` : '';
-                } else document.getElementById('r-customer-info').style.display = 'none';
-
-                document.getElementById('r-date').innerText = now.toLocaleDateString(); document.getElementById('r-time').innerText = now.toLocaleTimeString(); document.getElementById('r-inv-no').innerText = invNo;
-                document.getElementById('r-subtotal').innerText = subtotal.toFixed(2);
-                
-                if(taxAmount > 0) { document.getElementById('r-tax-row').style.display = 'flex'; document.getElementById('r-tax-lbl').innerText = document.getElementById('bill-tax').value; document.getElementById('r-tax-amt').innerText = taxAmount.toFixed(2); } else document.getElementById('r-tax-row').style.display = 'none';
-                if(discountAmount > 0) { document.getElementById('r-discount-row').style.display = 'flex'; document.getElementById('r-discount').innerText = `-${discountAmount.toFixed(2)}`; } else document.getElementById('r-discount-row').style.display = 'none';
-                
-                document.getElementById('r-grand-total').innerText = `LKR ${finalPayable.toFixed(2)}`; document.getElementById('r-method').innerText = currentPaymentMethod.toUpperCase();
-                if (currentPaymentMethod === 'Cash') { document.getElementById('r-tendered-row').style.display = 'flex'; document.getElementById('r-tendered').innerText = tendered.toFixed(2); document.getElementById('r-change-row').style.display = 'flex'; document.getElementById('r-change').innerText = change.toFixed(2); } else { document.getElementById('r-tendered-row').style.display = 'none'; document.getElementById('r-change-row').style.display = 'none'; }
-
-                if (typeof JsBarcode !== 'undefined') JsBarcode("#r-barcode", invNo, { format: "CODE128", width: 1.5, height: 40, displayValue: true, fontSize: 12, margin: 0 });
-
+                fillReceipt(sale);
                 await update(ref(db), updates);
-                window.print();
+                if (document.getElementById('print-after-sale').checked) window.print();
 
                 cart = {}; renderCart(); closeAllSheets();
-                document.getElementById('cust-name').value = ''; document.getElementById('cust-phone').value = '';
+                ['cust-name', 'cust-phone', 'cust-email', 'order-reference', 'invoice-note', 'payment-reference', 'tender-amount'].forEach(id => { document.getElementById(id).value = ''; });
+                document.getElementById('bill-tax').value = '0';
+                document.getElementById('bill-discount').value = '0';
+                document.getElementById('discount-type').value = 'flat';
+                window.setPayment('Cash');
                 showToast('Transaction Complete!', 'success');
 
-            } catch (error) { showToast('Network Error processing sale', 'error'); } 
+            } catch (error) { showToast(`Could not save sale: ${error.message || 'network error'}`, 'error'); }
             finally { btn.innerHTML = '<i class="fas fa-print"></i> Process & Print'; btn.disabled = false; }
         };
 

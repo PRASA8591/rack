@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrasaTek Medical Inventory ERP</title>
+    <title>PrasaTek Inventory ERP</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -12,11 +14,29 @@
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
 
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+        :root { --brand: #2563eb; --brand-dark: #172554; --surface: #f5f7fb; }
+        body { font-family: 'Manrope', sans-serif; background: var(--surface); }
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        #sidebar { background: linear-gradient(180deg, #101828 0%, #172033 100%); color: #cbd5e1; }
+        #sidebar > div { border-color: rgba(148, 163, 184, .12) !important; }
+        #sidebar #category-list li { border: 1px solid transparent; padding: 10px 12px; border-radius: 12px; transition: .2s ease; }
+        #sidebar #category-list li:hover { background: rgba(255,255,255,.07) !important; color: #fff !important; }
+        #sidebar #category-list li.bg-blue-50 { background: rgba(59,130,246,.18) !important; color: #93c5fd !important; border-color: rgba(96,165,250,.18); }
+        #sidebar-toggle-btn { box-shadow: 0 8px 24px rgba(15,23,42,.18); }
+        header.no-print { background: rgba(255,255,255,.92) !important; backdrop-filter: blur(14px); }
+        #analytics-cards > div { border-radius: 18px; border-color: #edf0f5; box-shadow: 0 8px 30px rgba(30,41,59,.055); transition: .25s ease; }
+        #analytics-cards > div:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(30,41,59,.09); }
+        #item-table-body tr { transition: background-color .18s ease; }
+        #item-table-body tr:hover { background: #f8fafc; }
+        input, select { outline: none; }
+        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+        #add-item-modal > div, #barcode-modal > div, #confirm-modal > div { border-radius: 22px; box-shadow: 0 28px 80px rgba(15,23,42,.22); }
+        .toast-enter { animation: toast-in .35s ease both; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
         
         /* Print Optimization */
         @media print {
@@ -43,22 +63,28 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
 
-    <div class="md:hidden fixed top-0 w-full bg-slate-900 text-white p-4 flex justify-between items-center z-50 shadow-md no-print">
-        <h1 class="text-xl font-bold tracking-wider">PrasaTek V3</h1>
+    <div class="md:hidden fixed top-0 w-full bg-slate-950/95 backdrop-blur-xl text-white px-5 py-3.5 flex justify-between items-center z-50 shadow-lg no-print">
+        <div class="flex items-center gap-3">
+            <img src="favicon.png" alt="PrasaTek logo" class="w-9 h-9 rounded-xl object-cover shadow-lg shadow-blue-950/40">
+            <div><h1 class="text-base font-extrabold tracking-wide">PrasaTek</h1><p class="text-[9px] text-slate-400 uppercase tracking-[.22em]">Inventory V3</p></div>
+        </div>
         <button id="mobile-menu-btn" class="text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
     </div>
 
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 bg-white border-r border-slate-200 flex flex-col h-full z-40 mt-16 md:mt-0 shadow-sm overflow-hidden">
-        <div class="hidden md:block p-6 bg-slate-900 text-white relative">
-            <h1 class="sidebar-logo text-2xl font-black tracking-tight text-blue-400">PrasaTek</h1>
-            <h1 class="sidebar-mini-logo text-2xl font-black text-blue-400 text-center">P</h1>
+        <div class="hidden md:block p-6 bg-slate-950/30 text-white relative">
+            <div class="sidebar-logo flex items-center gap-3">
+                <img src="favicon.png" alt="PrasaTek logo" class="w-10 h-10 rounded-xl object-cover">
+                <h1 class="text-2xl font-black tracking-tight text-white"><span class="text-blue-400">Prasa</span>Tek</h1>
+            </div>
+            <img src="favicon.png" alt="PrasaTek logo" class="sidebar-mini-logo w-9 h-9 mx-auto rounded-xl object-cover">
             <p class="sidebar-text text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">INVENTORY ENGINE V3.0</p>
             <button id="sidebar-toggle-btn" class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 shadow-sm z-50 no-print">
                 <i class="fas fa-chevron-left text-[10px]" id="toggle-icon"></i>
             </button>
         </div>
         
-        <div class="sidebar-text p-4 border-b border-slate-100 bg-slate-50">
+        <div class="sidebar-text p-4 border-b border-slate-700/50 bg-slate-900/20">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Manage Categories</h2>
             <form id="add-category-form" class="flex gap-2">
                 <input type="text" id="new-category-name" placeholder="New category..." required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
@@ -80,7 +106,7 @@
             <p class="text-sm text-slate-500 mt-1">Generated on: <span id="print-date"></span></p>
         </div>
         
-        <header class="bg-white border-b border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-0 no-print">
+        <header class="bg-white border-b border-slate-200/80 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-0 no-print">
             <div class="flex items-center gap-4 w-full sm:w-auto">
                 <div class="relative w-full sm:w-80">
                     <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
@@ -89,6 +115,9 @@
             </div>
             
             <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+                <a href="bill.html" class="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-100 transition text-sm flex items-center gap-2 font-bold border border-blue-200" aria-label="Open billing point of sale">
+                    <i class="fas fa-cash-register text-blue-600"></i> Billing POS
+                </a>
                 <button onclick="window.printLowStock()" class="bg-amber-100/50 text-amber-700 px-3 py-2 rounded-lg hover:bg-amber-100 transition text-sm flex items-center gap-2 font-bold border border-amber-200">
                     <i class="fas fa-exclamation-circle text-amber-500"></i> Restock List
                 </button>
@@ -108,7 +137,7 @@
             </div>
         </header>
 
-        <div id="analytics-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 pb-0 no-print">
+        <div id="analytics-cards" class="grid grid-cols-2 xl:grid-cols-4 gap-4 p-6 pb-0 no-print">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><i class="fas fa-cubes text-xl"></i></div>
                 <div><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Items</p><h3 id="stat-total" class="text-xl font-black text-slate-800">0</h3></div>
@@ -147,7 +176,7 @@
                     <button id="next-page" class="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50"><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-auto relative">
+            <div class="bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_35px_rgba(30,41,59,.06)] flex-1 overflow-auto relative">
                 <div id="table-loader" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 hidden flex items-center justify-center">
                     <i class="fas fa-circle-notch fa-spin text-3xl text-blue-600"></i>
                 </div>
